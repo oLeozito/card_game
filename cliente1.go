@@ -27,6 +27,8 @@ func main() {
 	message := "FIND_ROOM:\n"
 	conn.Write([]byte(message))
 	fmt.Println("Mensagem enviada.")
+	
+	// Depois que o usuario enviar algum comando, ele tem que esperar SEMPRE a resposta do comando que ele enviou.
 
 	// Lê a resposta do servidor
 	buffer := make([]byte, 1024)
@@ -37,4 +39,9 @@ func main() {
 	}
 	response := string(buffer[:n])
 	fmt.Println("Recebido do servidor:", response)
+
+	if response == "O jogo esta inciando"{
+		conn.Write([]byte("CHAT:Eai mano!\n"))
+	}
+
 }

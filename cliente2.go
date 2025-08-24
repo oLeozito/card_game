@@ -24,7 +24,7 @@ func main() {
 	fmt.Printf("Conectado ao servidor %s\n", conn.RemoteAddr())
 
 	// Envia uma mensagem
-	message := "Olá do cliente!"
+	message := "FIND_ROOM:\n"
 	conn.Write([]byte(message))
 	fmt.Println("Mensagem enviada.")
 
@@ -37,4 +37,8 @@ func main() {
 	}
 	response := string(buffer[:n])
 	fmt.Println("Recebido do servidor:", response)
+
+	if response == "O jogo esta inciando"{
+		conn.Write([]byte("CHAT:Eai jogador1!\n"))
+	}
 }
