@@ -8,26 +8,11 @@ services:
       - "5000:5000"
     volumes:
       - .:/app
-    command: ["go", "run", "servidor.go"] # Executa o servidor
+    command: ["go", "run", "servidor.go"]
 
-  cliente1:
+  # Define um único serviço de cliente para criar a imagem
+  cliente:
     build: .
-    container_name: cliente_1
-    depends_on:
-      - servidor # Garante que o servidor inicie primeiro
     volumes:
       - .:/app
-    command: ["go", "run", "cliente1.go"] # Executa o cliente 1
-
-  cliente2:
-    build: .
-    container_name: cliente_2
-    depends_on:
-      - servidor
-    volumes:
-      - .:/app
-    command: ["go", "run", "cliente2.go"] # Executa o cliente 2
-
-networks:
-  default:
-    driver: bridge
+    command: ["go", "run", "cliente.go"]

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net"
 	"time"
+	"strings"
+	"bufio"
 )
 
 func main() {
@@ -31,17 +33,41 @@ func main() {
 	// Depois que o usuario enviar algum comando, ele tem que esperar SEMPRE a resposta do comando que ele enviou.
 
 	// Lê a resposta do servidor
-	buffer := make([]byte, 1024)
-	n, err := conn.Read(buffer)
+	reader := bufio.NewReader(conn)
+	response, err := reader.ReadString('\n')
 	if err != nil {
 		fmt.Println("Erro ao ler resposta:", err)
 		return
 	}
-	response := string(buffer[:n])
+	response = strings.TrimSpace(response) // remove \n e espaços
+
+	// separa em comando:conteúdo
+	parts := strings.SplitN(response, ":", 2)
+	command := parts[0]
+
 	fmt.Println("Recebido do servidor:", response)
 
-	if response == "O jogo esta inciando"{
-		conn.Write([]byte("CHAT:Eai mano!\n"))
-	}
+	if command == "PAREADO" {
+	// manda msg inicial
+		conn.Write([]byte("CHAT:Eai jogador2 beleza?\n"))
 
+		// fica sempre esperando msgs do outro jogador
+		for {
+			msg, err := reader.ReadString('\n')
+			if err != nil {
+				fmt.Println("Conexão encerrada ou erro:", err)
+				return
+			}
+
+			// limpa e mostra
+			msg = strings.TrimSpace(msg)
+			if msg != "" {
+				// remove o prefixo "CHAT:" se existir
+				if strings.HasPrefix(msg, "CHAT:") {
+					msg = strings.TrimPrefix(msg, "CHAT:")
+				}
+				fmt.Println("Mensagem recebida do outro jogador:", msg)
+			}
+		}
+	}
 }

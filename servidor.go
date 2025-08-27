@@ -60,7 +60,6 @@ func main() {
 // Aqui vai abrir uma Thread de comunicacao com o usuario e interpretar os comandos enviados.
 func handleConnection(conn net.Conn) {
     defer conn.Close()
-    fmt.Printf("Conectado com %s\n", conn.RemoteAddr())
 
     // Cria um leitor que envolve a sua conexão.
     reader := bufio.NewReader(conn) 
@@ -85,7 +84,7 @@ func handleConnection(conn net.Conn) {
 		interpreter(conn,message)
 
         // Resposta simples (sem \n, porque o ReadString do cliente vai esperar o \n)
-        conn.Write([]byte("Olá, jogador! Sua mensagem foi recebida."))
+        //conn.Write([]byte("Olá, jogador! Sua mensagem foi recebida."))
     }
 }
 
@@ -119,10 +118,11 @@ func findRoom(conn net.Conn) {
 		sala_em_espera.Jogador2 = conn
 
 		playersInRoom[sala_em_espera.Jogador1.RemoteAddr().String()] = sala_em_espera
+		playersInRoom[sala_em_espera.Jogador2.RemoteAddr().String()] = sala_em_espera
 
 		sala_em_espera.Status = "Em_Jogo"
-		sala_em_espera.Jogador1.Write([]byte("O jogo esta inciando"))
-		sala_em_espera.Jogador2.Write([]byte("O jogo esta inciando"))
+		sala_em_espera.Jogador1.Write([]byte("PAREADO:\n"))
+		sala_em_espera.Jogador2.Write([]byte("PAREADO:\n"))
 
 		//Print so de debug
 		fmt.Println("Sala iniciada")
@@ -133,17 +133,25 @@ func findRoom(conn net.Conn) {
 }
 
 // Essa funcao vai servir pra encontrar e enviar uma mensagem de um jogador para o outro na mesma sala.
-func messageRouter(conn net.Conn,message string){
+func messageRouter(conn net.Conn, message string) {
 	room_to_chat := playersInRoom[conn.RemoteAddr().String()]
-	// Verificar aqui antes se a sala ja esta pareada, se nao nao da pra enviar a mensagem pro outro player.
-	fmt.Println("ENtrei na MessageROuter")
-	if conn.RemoteAddr().String() != room_to_chat.Jogador1.RemoteAddr().String(){
-		room_to_chat.Jogador1.Write([]byte(message))
-	}else if conn.RemoteAddr().String() != room_to_chat.Jogador2.RemoteAddr().String(){
-		room_to_chat.Jogador2.Write([]byte(message))
+
+	fmt.Println("Entrei na MessageRouter")
+
+	// Prefixa a mensagem com "CHAT:" e garante o \n no final
+	formattedMessage := "CHAT:" + message
+	if !strings.HasSuffix(formattedMessage, "\n") {
+		formattedMessage += "\n"
 	}
-	return
+
+	// Envia para o outro jogador da sala
+	if conn.RemoteAddr().String() == room_to_chat.Jogador1.RemoteAddr().String() {
+		room_to_chat.Jogador2.Write([]byte(formattedMessage))
+	} else if conn.RemoteAddr().String() == room_to_chat.Jogador2.RemoteAddr().String() {
+		room_to_chat.Jogador1.Write([]byte(formattedMessage))
+	}
 }
+
 
 // Essa funcao vai ser chamada pra interpretar as mensagens recebidas pelos clientes e decidir o que fazer.
 func interpreter(conn net.Conn, fullMessage string) {
