@@ -1,14 +1,14 @@
 package main
 
 import (
-	"fmt"
-	"math/rand"
-	"net"
-	"strings"
-	"sync"
-	"time"
-	"bufio"
-	"io"
+	"fmt" // formatar
+	"math/rand"// gerar aleatorio
+	"net" 
+	"strings" // manipular string
+	"sync" // se nao me engano pro mutex
+	"time" // pegar tempo pra gerar aleatorio
+	"bufio" // tratar buffer
+	"io" // n lembro
 )
 
 type Sala struct {
