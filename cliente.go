@@ -1,102 +1,123 @@
 package main
 
 import (
-	"fmt"
-	"net"
-	"time"
-	"strings"
 	"bufio"
+	"fmt"
 	"io"
+	"net"
 	"os"
+	"strings"
+	"time"
+)
+
+// Define o estado do jogo
+type GameState int
+
+const (
+	MenuState GameState = 0
+	WaitingState GameState = 1
+	InGameState GameState = 2
 )
 
 func main() {
-	// Tenta se conectar ao servidor.
-	// "servidor" é o nome do serviço no Docker Compose, que atua como um hostname.
-	var conn net.Conn // conexao
-	var err error // erro se houver
+	var conn net.Conn
+	var err error
 
-	// Fica tentando conectar
 	for {
-		conn, err = net.Dial("tcp", "servidor:5000")
+		conn, err = net.Dial("tcp", "servidor:8080")
 		if err == nil {
-			break // Conectado, sai do loop
+			break
 		}
 		fmt.Println("Aguardando o servidor...")
-		time.Sleep(1 * time.Second) // Espera e tenta novamente
+		time.Sleep(1 * time.Second)
 	}
 	defer conn.Close()
 	fmt.Printf("Conectado ao servidor %s\n", conn.RemoteAddr())
 
-	//AQUI
-	// Cria o writer e reader para a conexao
 	writer := bufio.NewWriter(conn)
 	reader := bufio.NewReader(conn)
 	
-	go interpreter(reader)
+	// Cria um canal de comunicação entre as goroutines
+	gameChannel := make(chan string)
 
-	// Loop do Menu pra o usuario ja generalizando
+	go interpreter(reader, gameChannel)
+
+	userInputReader := bufio.NewReader(os.Stdin)
+	currentState := MenuState
+
 	for {
-		fmt.Println("\nEscolha uma opção:")
-		fmt.Println("1. Entrar em Sala")
-		fmt.Println("2. Criar nova sala privada")
-		fmt.Println("3. Mensagem Global")
-		fmt.Println("0. Sair")
-		fmt.Printf("> ")
+		// Verifica se há alguma mensagem no canal para mudar o estado do jogo
+		select {
+		case msg := <-gameChannel:
+			if msg == "PAREADO" {
+				currentState = InGameState
+				fmt.Println("\nPartida encontrada! Você agora pode enviar mensagens de chat.")
+			}
+		default:
+			// Continua no loop se o canal estiver vazio
+		}
 
-		// Lê a entrada do usuário do terminal
-		userInputReader := bufio.NewReader(os.Stdin)
-		input, _ := userInputReader.ReadString('\n')
-		input = strings.TrimSpace(input)
+		if currentState == MenuState {
+			showMainMenu(userInputReader, writer)
+			input, _ := userInputReader.ReadString('\n')
+			input = strings.TrimSpace(input)
 
-		switch input {
-		
-		case "1":
-			local_r := bufio.NewReader(os.Stdin)
-
-			fmt.Printf("Quer entrar numa sala privada ou publica?\n1-Publica\n2-Privada\n>")
-			opcao, _ := local_r.ReadString('\n')
-			opcao = strings.TrimSpace(opcao)
-
-			switch opcao{
+			switch input {
 			case "1":
-				// CHAMA O BAGULHO QUE ENVIA A MENSAGEM PRO SERVIDOR
+				fmt.Println("Buscando sala publica...")
+				writer.WriteString("FIND_ROOM:PUBLIC\n")
+				writer.Flush()
+				// Talvez tenha que colocar uma confirmacao do servidor aqui antes. 
+				currentState = WaitingState // Muda o estado para aguardar
 			case "2":
-				// CHAMA O BAGULHO QUE ENVIA A MENSAGEM PRO SERVIDOR
+				fmt.Printf("Digite o código da sala:\n> ")
+				codigoDaSala, _ := userInputReader.ReadString('\n')
+				codigoDaSala = strings.TrimSpace(codigoDaSala)
+				codigoDaSala = strings.ToUpper(codigoDaSala)
+				pack := fmt.Sprintf("PRIV_ROOM:%s\n",codigoDaSala)
+				writer.WriteString(pack)
+				writer.Flush()
+			case "3":
+				writer.WriteString("CREATE_ROOM:\n")
+				writer.Flush()
+				currentState = WaitingState // Muda o estado para aguardar
+			case "0":
+				writer.WriteString("QUIT:\n")
+				writer.Flush()
+				fmt.Println("Saindo do jogo. Desconectando...")
+				time.Sleep(1 * time.Second)
+				return
 			default:
 				fmt.Println("Opção inválida. Tente novamente.")
 			}
-
-		case "2":
-			fmt.Println("Criando Sala Privada")
-		
-		case "3":
-			fmt.Printf("Digite sua Mensagem:\n> ")
-			// Usa o leitor do terminal para ler a mensagem
-			message, _ := userInputReader.ReadString('\n')
-			message = strings.TrimSuffix(message, "\n")
-			
-			// O print agora funcionará, pois você leu a entrada do terminal
-			fmt.Println("So de teste aqui: ", message)
-
-		case "0":
-			// Envia uma mensagem para o servidor informando que o cliente está saindo
-			writer.WriteString("QUIT:\n")
-			writer.Flush()
-			fmt.Println("Saindo do jogo. Desconectando...")
-			time.Sleep(1 * time.Second)
-			return // Sai da goroutine principal e fecha a conexao
-		default:
-			fmt.Println("Opção inválida. Tente novamente.")
+		} else if currentState == WaitingState {
+			fmt.Println("Aguardando um oponente...")
+			time.Sleep(2 * time.Second) 
+		} else if currentState == InGameState {
+			showInGameMenu(userInputReader, writer)
 		}
 	}
-
-
 }
 
-func interpreter(reader *bufio.Reader) {
+func showMainMenu(reader *bufio.Reader, writer *bufio.Writer) {
+	fmt.Println("\nEscolha uma opção:")
+	fmt.Println("1. Entrar em Sala Pública.")
+	fmt.Println("2. Entrar em Sala Privada.")
+	fmt.Println("3. Criar sala Privada.")
+	fmt.Println("0. Sair")
+	fmt.Printf("> ")
+}
+
+func showInGameMenu(reader *bufio.Reader, writer *bufio.Writer) {
+    fmt.Printf("\nDigite sua Mensagem:\n> ")
+    message, _ := reader.ReadString('\n')
+    writer.WriteString("CHAT:" + strings.TrimSuffix(message, "\n") + "\n")
+    writer.Flush()
+}
+
+// O interpreter agora envia uma mensagem para o canal quando a partida inicia
+func interpreter(reader *bufio.Reader, gameChannel chan string) {
 	for {
-		// Tenta ler uma mensagem do servidor
 		message, err := reader.ReadString('\n')
 		if err != nil {
 			if err == io.EOF {
@@ -108,12 +129,27 @@ func interpreter(reader *bufio.Reader) {
 			return
 		}
 		
-		message = strings.TrimSpace(message)
 
-		// Logica de interpretar a mensagem do servidor aqui depois !!!!!!!!!!!!!!!!!!!!!
-		fmt.Printf("\n[Mensagem do servidor]: %s\n", message)
+		parts := strings.SplitN(message, ":", 2)
+    	command := strings.TrimSpace(parts[0])
+    	content := ""
+
+		if len(parts) > 1 {
+        content = strings.TrimSpace(parts[1])
+    	}
 		
-		// Volta a mostrar o prompt para o usuário
-		fmt.Printf("> ")
+		switch command{
+		case "PAREADO":
+			gameChannel <- "PAREADO"
+			fmt.Println(command)
+		case "CHAT": // Mensagem PlayerToPlayer
+			fmt.Println(content)
+			fmt.Printf("> ")
+		case "SCREEN_MSG": // Mensagem informativa
+			fmt.Println(content)
+			fmt.Printf("> ")
+		default:
+			// Por enquanto faz nada.
+		}
 	}
 }
