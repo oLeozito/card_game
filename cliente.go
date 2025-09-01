@@ -17,6 +17,7 @@ const (
 	MenuState GameState = 0
 	WaitingState GameState = 1
 	InGameState GameState = 2
+	LoginState GameState = 3
 )
 
 func main() {
@@ -57,7 +58,22 @@ func main() {
 			// Continua no loop se o canal estiver vazio
 		}
 
-		if currentState == MenuState {
+		if currentState == LoginState {
+			showLoginMenu(userInputReader,writer)
+			option, _ := userInputReader.ReadString('\n')
+			input = strings.TrimSpace(option)
+
+			switch option{
+			case "1":
+
+			case "2":
+				fmt.Print("Digite um login: ")
+				fmt.Scanln(&login)
+
+				fmt.Print("Agora digite uma senha: ")
+				fmt.Scanln(&senha)
+			}
+		}else if currentState == MenuState {
 			showMainMenu(userInputReader, writer)
 			input, _ := userInputReader.ReadString('\n')
 			input = strings.TrimSpace(input)
@@ -98,6 +114,13 @@ func main() {
 			showInGameMenu(userInputReader, writer)
 		}
 	}
+}
+
+func showLoginMenu(reader *bufio.Reader, writer *bufio.Writer) {
+	fmt.Println("Bem vindo ao Super Trunfo online!")
+	fmt.Println("1. Login")
+	fmt.Println("2. Cadastro")
+	fmt.Println("> ")
 }
 
 func showMainMenu(reader *bufio.Reader, writer *bufio.Writer) {
@@ -149,7 +172,7 @@ func interpreter(reader *bufio.Reader, gameChannel chan string) {
 			fmt.Printf("> ")
 		case "SCREEN_MSG": // Mensagem informativa
 			fmt.Println(content)
-			fmt.Printf("> ")
+			//fmt.Printf("> ") // Tirar depois
 		default:
 			// Por enquanto faz nada.
 		}
