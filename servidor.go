@@ -88,6 +88,10 @@ func findRoom(conn net.Conn, command string, content string) {
             sala_em_espera.Status = "Em_Jogo"
             sala_em_espera.Jogador1.Write([]byte("PAREADO\n"))
             sala_em_espera.Jogador2.Write([]byte("PAREADO\n"))
+            
+            // Talvez tenha que colocar um MUTEX aqui.
+            removeSala(sala_em_espera.ID) // Chama funcao pra remover a sala da lista.
+
             fmt.Println("Sala iniciada")
         } else{
             codigo := randomGenerate()
@@ -101,7 +105,6 @@ func findRoom(conn net.Conn, command string, content string) {
             salas[codigo] = novaSala
             salasEmEspera = append(salasEmEspera, novaSala)
             playersInRoom[conn.RemoteAddr().String()] = novaSala
-            conn.Write([]byte("SCREEN_MSG:Esperando por um oponente...\n"))
         }
     }else if command == "PRIV_ROOM" {
         salas[content].Jogador2 = conn
@@ -141,6 +144,17 @@ func create_room(conn net.Conn) {
     conn.Write([]byte(formattedMessage))
 }
 
+func removeSala(salaID string) {
+    for i, sala := range salasEmEspera {
+        if sala.ID == salaID {
+            // Remove o elemento do slice mantendo a ordem
+            salasEmEspera = append(salasEmEspera[:i], salasEmEspera[i+1:]...)
+            fmt.Printf("Sala %s removida da lista de espera\n", salaID)
+            return
+        }
+    }
+}
+
 func messageRouter(conn net.Conn, message string) {
     mu.Lock()
     defer mu.Unlock()
@@ -151,7 +165,7 @@ func messageRouter(conn net.Conn, message string) {
         return
     }
 
-    formattedMessage := "CHAT:" + message
+    formattedMessage := "CHAT:" + "Nome:" + message // trocar o nome pelo nick do player.
     if !strings.HasSuffix(formattedMessage, "\n") {
         formattedMessage += "\n"
     }

@@ -77,6 +77,7 @@ func main() {
 				pack := fmt.Sprintf("PRIV_ROOM:%s\n",codigoDaSala)
 				writer.WriteString(pack)
 				writer.Flush()
+				currentState = WaitingState // Muda o estado para aguardar
 			case "3":
 				writer.WriteString("CREATE_ROOM:\n")
 				writer.Flush()
@@ -92,7 +93,7 @@ func main() {
 			}
 		} else if currentState == WaitingState {
 			fmt.Println("Aguardando um oponente...")
-			time.Sleep(2 * time.Second) 
+			time.Sleep(5 * time.Second) 
 		} else if currentState == InGameState {
 			showInGameMenu(userInputReader, writer)
 		}
@@ -142,6 +143,7 @@ func interpreter(reader *bufio.Reader, gameChannel chan string) {
 		case "PAREADO":
 			gameChannel <- "PAREADO"
 			fmt.Println(command)
+			fmt.Printf("> ")
 		case "CHAT": // Mensagem PlayerToPlayer
 			fmt.Println(content)
 			fmt.Printf("> ")
