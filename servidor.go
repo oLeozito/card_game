@@ -109,7 +109,11 @@ func interpreter(conn net.Conn, fullMessage string) {
         cadastrarUser(conn,data)
 
     case "LOGIN":
-        //Colocar aq o codigi
+		var data protocolo.LoginRequest
+        _ = mapToStruct(msg.Data, &data)
+
+		loginUser(conn,data)
+
 	case "CREATE_ROOM":
 		createRoom(conn)
 	case "FIND_ROOM":
@@ -193,6 +197,35 @@ func cadastrarUser(conn net.Conn, data protocolo.SignInRequest){
     }
     sendScreenMsg(conn, "Cadastro realizado com sucesso!")
 }
+
+func loginUser(conn net.Conn, data protocolo.LoginRequest) {
+	mu.Lock()
+	defer mu.Unlock()
+
+	player, exists := players[data.Login]
+
+	if !exists || player.Online {
+		// Usuário não existe OU já está logado
+		msg := protocolo.Message{
+			Type: "LOGIN",
+			Data: protocolo.LoggedMessage{Status: "ERRO"},
+		}
+		sendJSON(conn, msg)
+		return
+	}
+
+	// Usuário existe e não está online -> loga
+	player.Online = true
+	msg := protocolo.Message{
+		Type: "LOGIN",
+		Data: protocolo.LoggedMessage{Status: "LOGADO"},
+	}
+	sendJSON(conn, msg)
+
+	// Enviar o inventario do usuario
+}
+
+
 
 func createRoom(conn net.Conn) {
 	mu.Lock()

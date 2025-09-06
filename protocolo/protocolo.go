@@ -35,3 +35,7 @@ type ScreenMessage struct {
 type PairingMessage struct {
     Status string `json:"status"` // exemplo: "PAREADO"
 }
+
+type LoggedMessage struct {
+    Status string `json:"status"` // LOGADO ou ERRO
+}

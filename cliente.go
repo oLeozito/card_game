@@ -20,6 +20,7 @@ const (
 	WaitingState
 	InGameState
 	LoginState
+	StopState
 )
 
 func main() {
@@ -52,6 +53,12 @@ func main() {
 			if msg == "PAREADO" {
 				currentState = InGameState
 				fmt.Println("\nPartida encontrada! Você agora pode enviar mensagens de chat.")
+			} else if msg == "LOGADO" {
+				fmt.Println("Login realizado com sucesso!")
+				currentState = MenuState
+			} else if msg == "ERRO" {
+				fmt.Println("Usuario ou senha incorretos. Ou o player ja esta conectado em outro dispositivo.")
+				currentState = LoginState
 			}
 		default:
 		}
@@ -61,7 +68,24 @@ func main() {
 
 			switch strings.TrimSpace(readLine(userInputReader)) {
 			case "1":
-				// ação para opção 1
+				// Login aqui
+				fmt.Print("Digite seu login: ")
+				login := strings.TrimSpace(readLine(userInputReader))
+
+				fmt.Print("Agora digite sua senha: ")
+				senha := strings.TrimSpace(readLine(userInputReader))
+
+				req:= protocolo.Message{
+					Type: "LOGIN",
+					Data: protocolo.LoginRequest{
+						Login: login,
+						Senha: senha,
+					},
+				}
+
+				// Envia
+				sendJSON(writer, req)
+				currentState = StopState
 
 			case "2":
 				fmt.Print("Digite um login: ")
@@ -69,8 +93,6 @@ func main() {
 
 				fmt.Print("Agora digite uma senha: ")
 				senha := strings.TrimSpace(readLine(userInputReader))
-
-				fmt.Printf("Login: %s e Senha: %s\n", login,senha)
 
 				req:= protocolo.Message{
 					Type: "CADASTRO",
@@ -83,9 +105,15 @@ func main() {
 				// Envia
 				sendJSON(writer, req)
 
-				time.Sleep(5 * time.Second) // Pausinha 
-				showLoginMenu(userInputReader, writer)
-
+			case "0":
+				req := protocolo.Message{
+					Type: "QUIT",
+					Data: nil,
+				}
+				sendJSON(writer, req)
+				fmt.Println("Saindo do jogo. Desconectando...")
+				time.Sleep(1 * time.Second)
+				return
 			}
 		}else if currentState == MenuState {
 			showMainMenu()
@@ -135,6 +163,8 @@ func main() {
 			time.Sleep(5 * time.Second)
 		} else if currentState == InGameState {
 			showInGameMenu(userInputReader, writer)
+		} else{
+			// Faz nada
 		}
 	}
 }
@@ -153,6 +183,7 @@ func showLoginMenu(reader *bufio.Reader, writer *bufio.Writer) {
 	fmt.Println("Bem vindo ao Super Trunfo online!")
 	fmt.Println("1. Login")
 	fmt.Println("2. Cadastro")
+	fmt.Println("0. Sair")
 	fmt.Println("> ")
 }
 
@@ -196,6 +227,11 @@ func interpreter(reader *bufio.Reader, gameChannel chan string) {
 		}
 
 		switch msg.Type {
+		case "LOGIN":
+			var data protocolo.LoggedMessage
+			_ = mapToStruct(msg.Data, &data)
+			gameChannel <- data.Status
+			fmt.Println(data.Status)
 		case "PAREADO":
 			gameChannel <- "PAREADO"
 		case "CHAT":
