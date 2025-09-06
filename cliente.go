@@ -231,7 +231,6 @@ func interpreter(reader *bufio.Reader, gameChannel chan string) {
 			var data protocolo.LoggedMessage
 			_ = mapToStruct(msg.Data, &data)
 			gameChannel <- data.Status
-			fmt.Println(data.Status)
 		case "PAREADO":
 			gameChannel <- "PAREADO"
 		case "CHAT":
