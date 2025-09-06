@@ -23,6 +23,8 @@ const (
 	StopState
 )
 
+var currentUser string
+
 func main() {
 	var conn net.Conn
 	var err error
@@ -82,6 +84,8 @@ func main() {
 						Senha: senha,
 					},
 				}
+
+				currentUser = login
 
 				// Envia
 				sendJSON(writer, req)
@@ -193,7 +197,7 @@ func showInGameMenu(reader *bufio.Reader, writer *bufio.Writer) {
 	message, _ := reader.ReadString('\n')
 	req := protocolo.Message{
 		Type: "CHAT",
-		Data: protocolo.ChatMessage{From: "leo", Content: strings.TrimSpace(message)},
+		Data: protocolo.ChatMessage{From: currentUser, Content: strings.TrimSpace(message)},
 	}
 	sendJSON(writer, req)
 }
