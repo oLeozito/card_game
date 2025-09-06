@@ -1,9 +1,7 @@
-version: "3.8"
-
 services:
   servidor:
     build: .
-    container_name: chat_servidor
+    container_name: servidor
     ports:
       - "8080:8080"
     volumes:
