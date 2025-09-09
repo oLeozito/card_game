@@ -58,8 +58,11 @@ func main() {
 			} else if msg == "LOGADO" {
 				fmt.Println("Login realizado com sucesso!")
 				currentState = MenuState
-			} else if msg == "ERRO" {
-				fmt.Println("Usuario ou senha incorretos. Ou o player ja esta conectado em outro dispositivo.")
+			} else if msg == "ONLINE_JA" {
+				fmt.Println("O player ja esta conectado em outro dispositivo.")
+				currentState = LoginState
+			} else if msg == "N_EXIST"{
+				fmt.Println("O usuario nao existe.")
 				currentState = LoginState
 			}
 		default:
@@ -150,6 +153,8 @@ func main() {
 				}
 				sendJSON(writer, req)
 				currentState = WaitingState
+			case "4":
+				// Abrir pacote de cartas.
 			case "0":
 				req := protocolo.Message{
 					Type: "QUIT",
@@ -178,9 +183,10 @@ func showMainMenu() {
 	fmt.Println("1. Entrar em Sala Pública.")
 	fmt.Println("2. Entrar em Sala Privada.")
 	fmt.Println("3. Criar sala Privada.")
+	fmt.Println("4. Abrir pacote de cartas.")
 	fmt.Println("0. Sair")
 	fmt.Printf("> ")
-}
+}					
 
 
 func showLoginMenu(reader *bufio.Reader, writer *bufio.Writer) {
@@ -191,15 +197,43 @@ func showLoginMenu(reader *bufio.Reader, writer *bufio.Writer) {
 	fmt.Println("> ")
 }
 
+func showHelpMenu() {
+	fmt.Println("\n=== MENU DE AJUDA ===")
+	fmt.Println("/chat <mensagem> - Envia uma mensagem para o chat.")
+	fmt.Println("/sair - Sai da partida.")
+	fmt.Println("Digite o número da carta (1, 2, 3, 4) para escolher a carta.")
+	fmt.Println("Digite o número da característica (1, 2, 3) para escolher a característica.")
+	fmt.Println("=====================")
+}
+
 
 func showInGameMenu(reader *bufio.Reader, writer *bufio.Writer) {
-	fmt.Printf("\nDigite sua Mensagem:\n> ")
+	fmt.Println("Digite /help caso precise de ajuda.")
+	fmt.Printf("\nDigite um comando ou jogada:\n> ")
 	message, _ := reader.ReadString('\n')
-	req := protocolo.Message{
-		Type: "CHAT",
-		Data: protocolo.ChatMessage{From: currentUser, Content: strings.TrimSpace(message)},
+	message = strings.TrimSpace(message)
+
+	if strings.HasPrefix(message, "/chat") {
+		// Remove o prefixo /chat e pega a mensagem
+		parts := strings.SplitN(message, " ", 2)
+		if len(parts) < 2 {
+			fmt.Println("Uso correto: /chat <mensagem>")
+			return
+		}
+		chatMsg := strings.TrimSpace(parts[1])
+		req := protocolo.Message{
+			Type: "CHAT",
+			Data: protocolo.ChatMessage{From: currentUser, Content: chatMsg},
+		}
+		sendJSON(writer, req)
+	} else if strings.HasPrefix(message, "/help") {
+		showHelpMenu()
+	} else if strings.HasPrefix(message, "/sair"){
+		// Saindo da partida
+	} else {
+		// Aqui você pode expandir depois para jogadas do tipo escolher carta
+		fmt.Println("Comando ou jogada inválida. Digite /help para ver os comandos.")
 	}
-	sendJSON(writer, req)
 }
 
 // envia qualquer struct em JSON pelo writer

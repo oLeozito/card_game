@@ -18,6 +18,7 @@ type User struct {
     Senha     string
     Online    bool
     Inventario Inventario
+	Moedas int
 }
 
 type Carta struct {
@@ -25,6 +26,8 @@ type Carta struct {
     Descricao   string
     Envergadura int
     Velocidade  int
+	Altura      int
+	Passageiros int
     // outros atributos...
 }
 
@@ -197,18 +200,27 @@ func cadastrarUser(conn net.Conn, data protocolo.SignInRequest){
     }
     sendScreenMsg(conn, "Cadastro realizado com sucesso!")
 }
-
 func loginUser(conn net.Conn, data protocolo.LoginRequest) {
 	mu.Lock()
 	defer mu.Unlock()
 
 	player, exists := players[data.Login]
 
-	if !exists || player.Online {
-		// Usuário não existe OU já está logado
+	if !exists {
+		// Usuário não existe
 		msg := protocolo.Message{
 			Type: "LOGIN",
-			Data: protocolo.LoggedMessage{Status: "ERRO"},
+			Data: protocolo.LoggedMessage{Status: "N_EXIST"},
+		}
+		sendJSON(conn, msg)
+		return
+	}
+
+	if player.Online {
+		// Usuário já está logado em outro lugar
+		msg := protocolo.Message{
+			Type: "LOGIN",
+			Data: protocolo.LoggedMessage{Status: "ONLINE_JA"},
 		}
 		sendJSON(conn, msg)
 		return
@@ -222,8 +234,9 @@ func loginUser(conn net.Conn, data protocolo.LoginRequest) {
 	}
 	sendJSON(conn, msg)
 
-	// Enviar o inventario do usuario
+	// aqui futuramente pode enviar inventário também
 }
+
 
 
 
