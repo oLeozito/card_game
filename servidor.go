@@ -16,6 +16,7 @@ import (
 type User struct {
     Login     string
     Senha     string
+	Conn      net.Conn
     Online    bool
     Inventario Inventario
 	Moedas int
@@ -89,11 +90,26 @@ func handleConnection(conn net.Conn) {
 			} else {
 				fmt.Println("Erro ao ler dados:", err)
 			}
+
+			// Logout automático
+			mu.Lock()
+			for _, player := range players {
+				if player.Conn == conn {
+					player.Online = false
+					player.Conn = nil
+					fmt.Printf("Usuário %s deslogou automaticamente\n", player.Login)
+					break
+				}
+			}
+			mu.Unlock()
+
+			// Posso verificar se o jogador ta em alguma sala, desconectar ele e fazer o outro ganhar
 			return
 		}
 		interpreter(conn, message)
 	}
 }
+
 
 func interpreter(conn net.Conn, fullMessage string) {
 	var msg protocolo.Message
@@ -193,11 +209,13 @@ func cadastrarUser(conn net.Conn, data protocolo.SignInRequest){
     }
 
     players[data.Login] = &User{
-        Login: data.Login,
-        Senha: data.Senha,
-        Online: false,
-        Inventario: Inventario{},
-    }
+		Login:      data.Login,
+		Senha:      data.Senha,
+		Online:     false,
+		Conn:       nil,
+		Inventario: Inventario{},
+	}
+
     sendScreenMsg(conn, "Cadastro realizado com sucesso!")
 }
 func loginUser(conn net.Conn, data protocolo.LoginRequest) {
@@ -227,7 +245,9 @@ func loginUser(conn net.Conn, data protocolo.LoginRequest) {
 	}
 
 	// Usuário existe e não está online -> loga
-	player.Online = true
+	player.Conn = conn // Vincula o player a sua conexao
+	player.Online = true 
+
 	msg := protocolo.Message{
 		Type: "LOGIN",
 		Data: protocolo.LoggedMessage{Status: "LOGADO"},
