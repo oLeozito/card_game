@@ -154,6 +154,8 @@ func main() {
 				sendJSON(writer, req)
 				currentState = WaitingState
 			case "4":
+				// Consultar o saldo do jogador.
+			case "5":
 				// Abrir pacote de cartas.
 			case "0":
 				req := protocolo.Message{
@@ -183,7 +185,8 @@ func showMainMenu() {
 	fmt.Println("1. Entrar em Sala Pública.")
 	fmt.Println("2. Entrar em Sala Privada.")
 	fmt.Println("3. Criar sala Privada.")
-	fmt.Println("4. Abrir pacote de cartas.")
+	fmt.Println("4. Consultar Saldo.")
+	fmt.Println("5. Abrir pacote de cartas.")
 	fmt.Println("0. Sair")
 	fmt.Printf("> ")
 }					
