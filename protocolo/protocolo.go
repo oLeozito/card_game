@@ -39,3 +39,11 @@ type PairingMessage struct {
 type LoggedMessage struct {
     Status string `json:"status"` // LOGADO ou ERRO
 }
+
+type OpenPackage struct{
+
+}
+
+type CheckBalance struct{
+    
+}

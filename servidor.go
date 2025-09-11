@@ -9,6 +9,8 @@ import (
 	"net"
 	"sync"
 	"time"
+	"os"
+    "path/filepath"
 	"card_game/protocolo"
 
 )
@@ -49,7 +51,8 @@ var (
 	salas         map[string]*Sala
 	salasEmEspera []*Sala
 	playersInRoom map[string]*Sala
-    players         map[string]*User  // Declarei como map porque posso usar futuramente pra verificar se ja esta online.
+    players       map[string]*User  // Declarei como map porque posso usar futuramente pra verificar se ja esta online.
+	cartas        []Carta
 	mu            sync.Mutex
 )
 
@@ -58,6 +61,12 @@ func main() {
 	salas = make(map[string]*Sala)
 	salasEmEspera = make([]*Sala, 0)
 	playersInRoom = make(map[string]*Sala)
+
+	// Chama a funcao pra carregar o Json de cartas cadastradas.
+	if err := carregarCartas(); err != nil {
+        fmt.Println("Erro ao carregar cartas:", err)
+        return
+    }
 
 	listener, err := net.Listen("tcp", ":8080")
 	if err != nil {
@@ -329,6 +338,23 @@ func mapToStruct(input interface{}, target interface{}) error {
 		return err
 	}
 	return json.Unmarshal(bytes, target)
+}
+
+func carregarCartas() error {
+    path := filepath.Join("data", "cartas.json")
+    file, err := os.Open(path)
+    if err != nil {
+        return err
+    }
+    defer file.Close()
+
+    decoder := json.NewDecoder(file)
+    if err := decoder.Decode(&cartas); err != nil {
+        return err
+    }
+
+    fmt.Printf("Foram carregadas %d cartas do arquivo JSON.\n", len(cartas))
+    return nil
 }
 
 func randomGenerate() string {

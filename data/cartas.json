@@ -1,0 +1,162 @@
+[
+  {
+    "Nome": "Boeing 747-8",
+    "Raridade": "Comum",
+    "Envergadura": 68,
+    "Velocidade": 1060,
+    "Altura": 13100,
+    "Passageiros": 467
+  },
+  {
+    "Nome": "Airbus A380",
+    "Raridade": "Raro",
+    "Envergadura": 80,
+    "Velocidade": 1020,
+    "Altura": 13100,
+    "Passageiros": 850
+  },
+  {
+    "Nome": "Concorde",
+    "Raridade": "Muito Raro",
+    "Envergadura": 26,
+    "Velocidade": 2180,
+    "Altura": 18300,
+    "Passageiros": 128
+  },
+  {
+    "Nome": "Lockheed SR-71 Blackbird",
+    "Raridade": "Muito Raro",
+    "Envergadura": 17,
+    "Velocidade": 3540,
+    "Altura": 25900,
+    "Passageiros": 2
+  },
+  {
+    "Nome": "Embraer E195-E2",
+    "Raridade": "Comum",
+    "Envergadura": 35,
+    "Velocidade": 870,
+    "Altura": 12500,
+    "Passageiros": 146
+  },
+  {
+    "Nome": "Boeing 737 MAX 8",
+    "Raridade": "Comum",
+    "Envergadura": 36,
+    "Velocidade": 842,
+    "Altura": 12500,
+    "Passageiros": 210
+  },
+  {
+    "Nome": "De Havilland Canada DHC-6 Twin Otter",
+    "Raridade": "Comum",
+    "Envergadura": 20,
+    "Velocidade": 314,
+    "Altura": 7600,
+    "Passageiros": 19
+  },
+  {
+    "Nome": "Learjet 75 Liberty",
+    "Raridade": "Raro",
+    "Envergadura": 15,
+    "Velocidade": 860,
+    "Altura": 15500,
+    "Passageiros": 9
+  },
+  {
+    "Nome": "McDonnell Douglas F-15 Eagle",
+    "Raridade": "Raro",
+    "Envergadura": 13,
+    "Velocidade": 2660,
+    "Altura": 20000,
+    "Passageiros": 1
+  },
+  {
+    "Nome": "Sukhoi Su-57",
+    "Raridade": "Muito Raro",
+    "Envergadura": 14,
+    "Velocidade": 2440,
+    "Altura": 20000,
+    "Passageiros": 1
+  },
+  {
+    "Nome": "Cessna 172 Skyhawk",
+    "Raridade": "Comum",
+    "Envergadura": 11,
+    "Velocidade": 226,
+    "Altura": 4000,
+    "Passageiros": 4
+  },
+  {
+    "Nome": "Dassault Rafale",
+    "Raridade": "Raro",
+    "Envergadura": 11,
+    "Velocidade": 2390,
+    "Altura": 15240,
+    "Passageiros": 1
+  },
+  {
+    "Nome": "Mikoyan MiG-29",
+    "Raridade": "Raro",
+    "Envergadura": 11,
+    "Velocidade": 2400,
+    "Altura": 18000,
+    "Passageiros": 1
+  },
+  {
+    "Nome": "Lockheed Martin F-35 Lightning II",
+    "Raridade": "Muito Raro",
+    "Envergadura": 11,
+    "Velocidade": 1930,
+    "Altura": 15000,
+    "Passageiros": 1
+  },
+  {
+    "Nome": "Antonov An-225 Mriya",
+    "Raridade": "Muito Raro",
+    "Envergadura": 88,
+    "Velocidade": 850,
+    "Altura": 11000,
+    "Passageiros": 1500
+  },
+  {
+    "Nome": "Pilatus PC-12",
+    "Raridade": "Comum",
+    "Envergadura": 16,
+    "Velocidade": 528,
+    "Altura": 9400,
+    "Passageiros": 9
+  },
+  {
+    "Nome": "Bombardier Global 7500",
+    "Raridade": "Raro",
+    "Envergadura": 32,
+    "Velocidade": 1142,
+    "Altura": 15500,
+    "Passageiros": 19
+  },
+  {
+    "Nome": "Northrop Grumman B-2 Spirit",
+    "Raridade": "Muito Raro",
+    "Envergadura": 52,
+    "Velocidade": 1010,
+    "Altura": 15000,
+    "Passageiros": 2
+  },
+  {
+    "Nome": "Beechcraft Baron G58",
+    "Raridade": "Comum",
+    "Envergadura": 12,
+    "Velocidade": 370,
+    "Altura": 6100,
+    "Passageiros": 6
+  },
+  {
+    "Nome": "Gulfstream G700",
+    "Raridade": "Raro",
+    "Envergadura": 31,
+    "Velocidade": 1142,
+    "Altura": 15500,
+    "Passageiros": 19
+  }
+]
