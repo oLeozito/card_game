@@ -447,19 +447,16 @@ func fillCardStorage() {
     storage = append(storage, cartaEscolhida)
 }
 
-func buyCard(player *User) (*Carta, bool) {
-	if len(storage) == 0 || player.Moedas < 10 {
-		return nil, false // Sem carta ou sem moedas suficientes
-	}
-
+func buyCard(player *User) *Carta {
 	carta := storage[0]       // pega a primeira carta
 	storage = storage[1:]     // remove da fila
 
 	fillCardStorage()         // adiciona uma nova carta no storage
 
 	player.Moedas -= 10       // desconta o valor da compra
-	return &carta, true
+	return &carta
 }
+
 
 
 func findPlayerByConn(conn net.Conn) *User {

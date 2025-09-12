@@ -133,7 +133,7 @@ func interpreter(reader *bufio.Reader, gameChannel chan string) {
 			_ = mapToStruct(msg.Data, &data)
 			gameChannel <- data.Status // Envia FALHA_COMPRA ou COMPRA_APROVADA pro channel.
 			if data.Status == "COMPRA_APROVADA"{
-				fmt.Printf("Voce ganhou a carta: " + data.CartaNova.Nome)
+				fmt.Printf("Voce ganhou a carta: " + data.CartaNova.Nome) // Atualizar o inventario do player.
 			}
 		case "BALANCE_RESPONSE":
 			var data protocolo.BalanceResponse
