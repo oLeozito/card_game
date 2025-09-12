@@ -52,7 +52,8 @@ var (
 	salasEmEspera []*Sala
 	playersInRoom map[string]*Sala
     players       map[string]*User  // Declarei como map porque posso usar futuramente pra verificar se ja esta online.
-	cartas        []Carta
+	cartas        []Carta			// Lista de cartas EXISTENTES
+	storage       []Carta			// Armazem onde ficam as cartas a serem "compradas"
 	mu            sync.Mutex
 )
 
@@ -126,6 +127,93 @@ func interpreter(conn net.Conn, fullMessage string) {
 		var data protocolo.ChatMessage
 		_ = mapToStruct(msg.Data, &data)
 		messageRouter(conn, data)
+	case "COMPRA":
+		mu.Lock()
+		defer mu.Unlock()
+
+		player := findPlayerByConn(conn) // encontra o player
+
+		if player == nil {
+			sendScreenMsg(conn, "Usuário não encontrado.")
+			return
+		}
+
+		if len(storage) == 0 {
+			resp := protocolo.CompraResponse{
+				Status: "EMPTY_STORAGE", // sem carta no storage
+			}
+			sendJSON(conn, protocolo.Message{
+				Type: "COMPRA_RESPONSE",
+				Data: resp,
+			})
+			return
+		}
+
+		if player.Moedas < 10 {
+			resp := protocolo.CompraResponse{
+				Status: "NO_BALANCE", // saldo insuficiente
+			}
+			sendJSON(conn, protocolo.Message{
+				Type: "COMPRA_RESPONSE",
+				Data: resp,
+			})
+			return
+		}
+
+		// Compra aprovada
+		carta, _ := buyCard(player)
+		player.Inventario.Cartas = append(player.Inventario.Cartas, *carta)
+
+		// Converte carta e inventário para o tipo protocolo
+		cartaProto := &protocolo.Carta{
+			Nome:        carta.Nome,
+			Descricao:   carta.Descricao,
+			Envergadura: carta.Envergadura,
+			Velocidade:  carta.Velocidade,
+			Altura:      carta.Altura,
+			Passageiros: carta.Passageiros,
+		}
+
+		invProto := protocolo.Inventario{
+			Cartas: make([]protocolo.Carta, len(player.Inventario.Cartas)),
+		}
+		for i, c := range player.Inventario.Cartas {
+			invProto.Cartas[i] = protocolo.Carta{
+				Nome:        c.Nome,
+				Descricao:   c.Descricao,
+				Envergadura: c.Envergadura,
+				Velocidade:  c.Velocidade,
+				Altura:      c.Altura,
+				Passageiros: c.Passageiros,
+			}
+		}
+
+		resp := protocolo.CompraResponse{
+			Status:     "COMPRA_APROVADA",
+			CartaNova:  cartaProto,
+			Inventario: invProto,
+		}
+
+		sendJSON(conn, protocolo.Message{
+			Type: "COMPRA_RESPONSE",
+			Data: resp,
+		})
+
+	case "CHECK_BALANCE":
+		player := findPlayerByConn(conn)
+		if player == nil {
+			sendScreenMsg(conn, "Usuário não encontrado.")
+			return
+		}
+
+		resp := protocolo.BalanceResponse{
+			Saldo: player.Moedas,
+		}
+
+		sendJSON(conn, protocolo.Message{
+			Type: "BALANCE_RESPONSE",
+			Data: resp,
+		})
 	case "QUIT":
 		conn.Close()
 	default:
@@ -342,6 +430,48 @@ func randomGenerate() string {
 	}
 }
 
+// Funcao pra adicionar cartas aleatórias na fila "storage".
+
+func fillCardStorage() {
+
+    if len(cartas) == 0 {
+        fmt.Println("Nenhuma carta cadastrada para preencher o storage.")
+        return
+    }
+
+    rand.Seed(time.Now().UnixNano())
+    idx := rand.Intn(len(cartas))
+    cartaEscolhida := cartas[idx]
+
+    // Adiciona carta normalmente ao final da fila
+    storage = append(storage, cartaEscolhida)
+}
+
+func buyCard(player *User) (*Carta, bool) {
+	if len(storage) == 0 || player.Moedas < 10 {
+		return nil, false // Sem carta ou sem moedas suficientes
+	}
+
+	carta := storage[0]       // pega a primeira carta
+	storage = storage[1:]     // remove da fila
+
+	fillCardStorage()         // adiciona uma nova carta no storage
+
+	player.Moedas -= 10       // desconta o valor da compra
+	return &carta, true
+}
+
+
+func findPlayerByConn(conn net.Conn) *User {
+    for _, player := range players {
+        if player.Conn == conn {
+            return player
+        }
+    }
+    return nil
+}
+
+
 
 func main() {
     players = make(map[string]*User)
@@ -354,6 +484,10 @@ func main() {
         fmt.Println("Erro ao carregar cartas:", err)
         return
     }
+	// Preenche a fila de pacotes de cartas.
+	for i := 0; i < 20; i++ {
+    	fillCardStorage()
+	}
 
 	listener, err := net.Listen("tcp", ":8080")
 	if err != nil {

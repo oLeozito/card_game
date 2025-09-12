@@ -43,7 +43,7 @@ func showLoginMenu(reader *bufio.Reader, writer *bufio.Writer) {
 	fmt.Println("1. Login")
 	fmt.Println("2. Cadastro")
 	fmt.Println("0. Sair")
-	fmt.Println("> ")
+	fmt.Printf("> ")
 }
 
 func showHelpMenu() {
@@ -57,8 +57,8 @@ func showHelpMenu() {
 
 
 func showInGameMenu(reader *bufio.Reader, writer *bufio.Writer) {
-	fmt.Println("Digite /help caso precise de ajuda.")
-	fmt.Printf("\nDigite um comando ou jogada:\n> ")
+	// fmt.Println("Digite /help caso precise de ajuda.")
+	// fmt.Printf("\nDigite um comando ou jogada:\n> ")
 	message, _ := reader.ReadString('\n')
 	message = strings.TrimSpace(message)
 
@@ -78,7 +78,7 @@ func showInGameMenu(reader *bufio.Reader, writer *bufio.Writer) {
 	} else if strings.HasPrefix(message, "/help") {
 		showHelpMenu()
 	} else if strings.HasPrefix(message, "/sair"){
-		// Saindo da partida
+		// AQUI MANDA UMA REQUISICAO PRO SERVIDOR PEDINDO PRA DESCONECTAR O PLAYER DA SALA E DAR VITORIA AO OUTRO.
 	} else {
 		// Aqui você pode expandir depois para jogadas do tipo escolher carta
 		fmt.Println("Comando ou jogada inválida. Digite /help para ver os comandos.")
@@ -128,6 +128,17 @@ func interpreter(reader *bufio.Reader, gameChannel chan string) {
 			var data protocolo.ScreenMessage
 			_ = mapToStruct(msg.Data, &data)
 			fmt.Println("[INFO] " + data.Content)
+		case "COMPRA_RESPONSE":
+			var data protocolo.CompraResponse
+			_ = mapToStruct(msg.Data, &data)
+			gameChannel <- data.Status // Envia FALHA_COMPRA ou COMPRA_APROVADA pro channel.
+			if data.Status == "COMPRA_APROVADA"{
+				fmt.Printf("Voce ganhou a carta: " + data.CartaNova.Nome)
+			}
+		case "BALANCE_RESPONSE":
+			var data protocolo.BalanceResponse
+			_ = mapToStruct(msg.Data, &data)
+			fmt.Printf("Seu saldo atual de moedas: %d\n", data.Saldo)
 		}
 	}
 }
@@ -152,7 +163,7 @@ func main() {
 	var err error
 
 	for {
-		conn, err = net.Dial("tcp", "servidor:8080")
+		conn, err = net.Dial("tcp", "127.0.0.1:8080")
 		if err == nil {
 			break
 		}
@@ -177,6 +188,8 @@ func main() {
 			if msg == "PAREADO" {
 				currentState = InGameState
 				fmt.Println("\nPartida encontrada! Você agora pode enviar mensagens de chat.")
+				fmt.Println("Digite /help caso precise de ajuda.")
+				fmt.Printf("\nDigite um comando ou jogada:\n> ")
 			} else if msg == "LOGADO" {
 				fmt.Println("Login realizado com sucesso!")
 				currentState = MenuState
@@ -186,12 +199,21 @@ func main() {
 			} else if msg == "N_EXIST"{
 				fmt.Println("O usuario nao existe.")
 				currentState = LoginState
+			} else if msg == "COMPRA_APROVADA"{
+				currentState = MenuState
+			} else if msg == "EMPTY_STORAGE"{
+				fmt.Println("Erro, armazem geral vazio!")
+				currentState = MenuState
+			}else if msg == "NO_BALANCE"{
+				fmt.Println("Você não tem saldo suficiente.")
+				currentState = MenuState
 			}
 		default:
 		}
 
 		if currentState == LoginState {
 			showLoginMenu(userInputReader, writer)
+			
 
 			switch strings.TrimSpace(readLine(userInputReader)) {
 			case "1":
@@ -246,6 +268,7 @@ func main() {
 			}
 		}else if currentState == MenuState {
 			showMainMenu()
+			
 			input, _ := userInputReader.ReadString('\n')
 			input = strings.TrimSpace(input)
 
@@ -276,9 +299,22 @@ func main() {
 				sendJSON(writer, req)
 				currentState = WaitingState
 			case "4":
-				// Consultar o saldo do jogador.
+				// Consultar o saldo do jogador
+				req := protocolo.Message{
+					Type: "CHECK_BALANCE",
+					Data: protocolo.CheckBalance{},
+				}
+				sendJSON(writer, req)
+				// Pensar se coloco no estado STOP ou deixo assim mesmo.
 			case "5":
 				// Abrir pacote de cartas.
+				req := protocolo.Message{
+					Type: "COMPRA",
+					Data: protocolo.OpenPackageRequest{},
+				}
+				sendJSON(writer, req)
+				currentState = StopState
+
 			case "0":
 				req := protocolo.Message{
 					Type: "QUIT",

@@ -1,5 +1,19 @@
 package protocolo
 
+type Carta struct {
+    Nome        string `json:"nome"`
+    Descricao   string `json:"descricao"`
+    Envergadura int    `json:"envergadura"`
+    Velocidade  int    `json:"velocidade"`
+    Altura      int    `json:"altura"`
+    Passageiros int    `json:"passageiros"`
+}
+
+type Inventario struct {
+    Cartas []Carta `json:"cartas"`
+}
+
+
 // Mensagem genérica que vai pelo socket
 type Message struct {
     Type string      `json:"type"` // Tipo de comando (ex: "LOGIN", "CHAT", "FIND_ROOM")
@@ -40,10 +54,22 @@ type LoggedMessage struct {
     Status string `json:"status"` // LOGADO ou ERRO
 }
 
-type OpenPackage struct{
+type OpenPackageRequest struct{}
 
+type CompraResponse struct {
+    Status    string   `json:"status"` // "OK" ou "FALHA"
+    CartaNova *Carta   `json:"carta_nova,omitempty"`
+    Inventario Inventario `json:"inventario,omitempty"`
 }
 
-type CheckBalance struct{
-    
+type InventoryResponse struct {
+    Inventario Inventario `json:"inventario"`
 }
+
+
+type CheckBalance struct{}
+
+type BalanceResponse struct {
+	Saldo int `json:"saldo"`
+}
+
