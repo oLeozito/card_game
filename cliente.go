@@ -23,8 +23,11 @@ const (
 	StopState
 )
 
-var currentUser string
-
+var(
+	currentUser string
+	currentInventario protocolo.Inventario
+	currentBalance int
+)
 
 func showMainMenu() {
 	fmt.Println("\nEscolha uma opção:")
@@ -115,9 +118,13 @@ func interpreter(reader *bufio.Reader, gameChannel chan string) {
 
 		switch msg.Type {
 		case "LOGIN":
-			var data protocolo.LoggedMessage
+			var data protocolo.LoginResponse
 			_ = mapToStruct(msg.Data, &data)
 			gameChannel <- data.Status
+			if data.Status == "LOGADO"{
+				currentBalance = data.Saldo
+				currentInventario = data.Inventario
+			}
 		case "PAREADO":
 			gameChannel <- "PAREADO"
 		case "CHAT":
@@ -133,12 +140,14 @@ func interpreter(reader *bufio.Reader, gameChannel chan string) {
 			_ = mapToStruct(msg.Data, &data)
 			gameChannel <- data.Status // Envia FALHA_COMPRA ou COMPRA_APROVADA pro channel.
 			if data.Status == "COMPRA_APROVADA"{
-				fmt.Printf("Voce ganhou a carta: " + data.CartaNova.Nome) // Atualizar o inventario do player.
+				fmt.Printf("Voce ganhou uma carta " +data.CartaNova.Raridade + ": " + data.CartaNova.Nome + "\n") // Atualizar o inventario do player.
+				currentInventario = data.Inventario
 			}
 		case "BALANCE_RESPONSE":
 			var data protocolo.BalanceResponse
 			_ = mapToStruct(msg.Data, &data)
 			fmt.Printf("Seu saldo atual de moedas: %d\n", data.Saldo)
+			currentBalance = data.Saldo
 		}
 	}
 }

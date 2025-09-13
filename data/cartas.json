@@ -9,7 +9,7 @@
   },
   {
     "Nome": "Airbus A380",
-    "Raridade": "Raro",
+    "Raridade": "Rara",
     "Envergadura": 80,
     "Velocidade": 1020,
     "Altura": 13100,
@@ -17,7 +17,7 @@
   },
   {
     "Nome": "Concorde",
-    "Raridade": "Muito Raro",
+    "Raridade": "Muito Rara",
     "Envergadura": 26,
     "Velocidade": 2180,
     "Altura": 18300,
@@ -25,7 +25,7 @@
   },
   {
     "Nome": "Lockheed SR-71 Blackbird",
-    "Raridade": "Muito Raro",
+    "Raridade": "Muito Rara",
     "Envergadura": 17,
     "Velocidade": 3540,
     "Altura": 25900,
@@ -57,7 +57,7 @@
   },
   {
     "Nome": "Learjet 75 Liberty",
-    "Raridade": "Raro",
+    "Raridade": "Rara",
     "Envergadura": 15,
     "Velocidade": 860,
     "Altura": 15500,
@@ -65,7 +65,7 @@
   },
   {
     "Nome": "McDonnell Douglas F-15 Eagle",
-    "Raridade": "Raro",
+    "Raridade": "Rara",
     "Envergadura": 13,
     "Velocidade": 2660,
     "Altura": 20000,
@@ -73,7 +73,7 @@
   },
   {
     "Nome": "Sukhoi Su-57",
-    "Raridade": "Muito Raro",
+    "Raridade": "Muito Rara",
     "Envergadura": 14,
     "Velocidade": 2440,
     "Altura": 20000,
@@ -89,7 +89,7 @@
   },
   {
     "Nome": "Dassault Rafale",
-    "Raridade": "Raro",
+    "Raridade": "Rara",
     "Envergadura": 11,
     "Velocidade": 2390,
     "Altura": 15240,
@@ -97,7 +97,7 @@
   },
   {
     "Nome": "Mikoyan MiG-29",
-    "Raridade": "Raro",
+    "Raridade": "Rara",
     "Envergadura": 11,
     "Velocidade": 2400,
     "Altura": 18000,
@@ -105,7 +105,7 @@
   },
   {
     "Nome": "Lockheed Martin F-35 Lightning II",
-    "Raridade": "Muito Raro",
+    "Raridade": "Muito Rara",
     "Envergadura": 11,
     "Velocidade": 1930,
     "Altura": 15000,
@@ -113,7 +113,7 @@
   },
   {
     "Nome": "Antonov An-225 Mriya",
-    "Raridade": "Muito Raro",
+    "Raridade": "Muito Rara",
     "Envergadura": 88,
     "Velocidade": 850,
     "Altura": 11000,
@@ -129,7 +129,7 @@
   },
   {
     "Nome": "Bombardier Global 7500",
-    "Raridade": "Raro",
+    "Raridade": "Rara",
     "Envergadura": 32,
     "Velocidade": 1142,
     "Altura": 15500,
@@ -137,7 +137,7 @@
   },
   {
     "Nome": "Northrop Grumman B-2 Spirit",
-    "Raridade": "Muito Raro",
+    "Raridade": "Muito Rara",
     "Envergadura": 52,
     "Velocidade": 1010,
     "Altura": 15000,
@@ -153,7 +153,7 @@
   },
   {
     "Nome": "Gulfstream G700",
-    "Raridade": "Raro",
+    "Raridade": "Rara",
     "Envergadura": 31,
     "Velocidade": 1142,
     "Altura": 15500,

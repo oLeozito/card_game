@@ -2,12 +2,13 @@ package protocolo
 
 type Carta struct {
     Nome        string `json:"nome"`
-    Descricao   string `json:"descricao"`
+    Raridade    string `json:"raridade"`
     Envergadura int    `json:"envergadura"`
     Velocidade  int    `json:"velocidade"`
     Altura      int    `json:"altura"`
     Passageiros int    `json:"passageiros"`
 }
+
 
 type Inventario struct {
     Cartas []Carta `json:"cartas"`
@@ -50,9 +51,12 @@ type PairingMessage struct {
     Status string `json:"status"` // exemplo: "PAREADO"
 }
 
-type LoggedMessage struct {
-    Status string `json:"status"` // LOGADO ou ERRO
+type LoginResponse struct {
+	Status     string     `json:"status"`     // LOGADO, N_EXIST, ONLINE_JA
+	Inventario Inventario `json:"inventario"` // inventário inicial
+	Saldo      int        `json:"saldo"`      // moedas atuais
 }
+
 
 type OpenPackageRequest struct{}
 

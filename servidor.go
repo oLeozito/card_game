@@ -26,13 +26,13 @@ type User struct {
 
 type Carta struct {
     Nome        string
-    Descricao   string
+    Raridade    string
     Envergadura int
     Velocidade  int
-	Altura      int
-	Passageiros int
-    // outros atributos...
+    Altura      int
+    Passageiros int
 }
+
 
 type Inventario struct {
     Cartas []Carta
@@ -128,76 +128,77 @@ func interpreter(conn net.Conn, fullMessage string) {
 		_ = mapToStruct(msg.Data, &data)
 		messageRouter(conn, data)
 	case "COMPRA":
-		mu.Lock()
-		defer mu.Unlock()
+	mu.Lock()
+	defer mu.Unlock()
 
-		player := findPlayerByConn(conn) // encontra o player
+	player := findPlayerByConn(conn) // encontra o player
 
-		if player == nil {
-			sendScreenMsg(conn, "Usuário não encontrado.")
-			return
-		}
+	if player == nil {
+		sendScreenMsg(conn, "Usuário não encontrado.")
+		return
+	}
 
-		if len(storage) == 0 {
-			resp := protocolo.CompraResponse{
-				Status: "EMPTY_STORAGE", // sem carta no storage
-			}
-			sendJSON(conn, protocolo.Message{
-				Type: "COMPRA_RESPONSE",
-				Data: resp,
-			})
-			return
-		}
-
-		if player.Moedas < 10 {
-			resp := protocolo.CompraResponse{
-				Status: "NO_BALANCE", // saldo insuficiente
-			}
-			sendJSON(conn, protocolo.Message{
-				Type: "COMPRA_RESPONSE",
-				Data: resp,
-			})
-			return
-		}
-
-		// Compra aprovada
-		carta := buyCard(player)
-		player.Inventario.Cartas = append(player.Inventario.Cartas, *carta)
-
-		// Converte carta e inventário para o tipo protocolo
-		cartaProto := &protocolo.Carta{
-			Nome:        carta.Nome,
-			Descricao:   carta.Descricao,
-			Envergadura: carta.Envergadura,
-			Velocidade:  carta.Velocidade,
-			Altura:      carta.Altura,
-			Passageiros: carta.Passageiros,
-		}
-
-		invProto := protocolo.Inventario{
-			Cartas: make([]protocolo.Carta, len(player.Inventario.Cartas)),
-		}
-		for i, c := range player.Inventario.Cartas {
-			invProto.Cartas[i] = protocolo.Carta{
-				Nome:        c.Nome,
-				Descricao:   c.Descricao,
-				Envergadura: c.Envergadura,
-				Velocidade:  c.Velocidade,
-				Altura:      c.Altura,
-				Passageiros: c.Passageiros,
-			}
-		}
-
+	if len(storage) == 0 {
 		resp := protocolo.CompraResponse{
-			Status:     "COMPRA_APROVADA",
-			CartaNova:  cartaProto,
-			Inventario: invProto,
+			Status: "EMPTY_STORAGE", // sem carta no storage
 		}
-
 		sendJSON(conn, protocolo.Message{
 			Type: "COMPRA_RESPONSE",
 			Data: resp,
 		})
+		return
+	}
+
+	if player.Moedas < 10 {
+		resp := protocolo.CompraResponse{
+			Status: "NO_BALANCE", // saldo insuficiente
+		}
+		sendJSON(conn, protocolo.Message{
+			Type: "COMPRA_RESPONSE",
+			Data: resp,
+		})
+		return
+	}
+
+	// Compra aprovada
+	carta := buyCard(player)
+	player.Inventario.Cartas = append(player.Inventario.Cartas, *carta)
+
+	// Converte carta e inventário para o tipo protocolo
+	cartaProto := &protocolo.Carta{
+		Nome:        carta.Nome,
+		Raridade:    carta.Raridade,
+		Envergadura: carta.Envergadura,
+		Velocidade:  carta.Velocidade,
+		Altura:      carta.Altura,
+		Passageiros: carta.Passageiros,
+	}
+
+	invProto := protocolo.Inventario{
+		Cartas: make([]protocolo.Carta, len(player.Inventario.Cartas)),
+	}
+	for i, c := range player.Inventario.Cartas {
+		invProto.Cartas[i] = protocolo.Carta{
+			Nome:        c.Nome,
+			Raridade:    c.Raridade,
+			Envergadura: c.Envergadura,
+			Velocidade:  c.Velocidade,
+			Altura:      c.Altura,
+			Passageiros: c.Passageiros,
+		}
+	}
+
+	resp := protocolo.CompraResponse{
+		Status:     "COMPRA_APROVADA",
+		CartaNova:  cartaProto,
+		Inventario: invProto,
+	}
+
+	sendJSON(conn, protocolo.Message{
+		Type: "COMPRA_RESPONSE",
+		Data: resp,
+	})
+
 
 	case "CHECK_BALANCE":
 		player := findPlayerByConn(conn)
@@ -281,6 +282,7 @@ func cadastrarUser(conn net.Conn, data protocolo.SignInRequest){
 		Online:     false,
 		Conn:       nil,
 		Inventario: Inventario{},
+		Moedas:		50,
 	}
 
     sendScreenMsg(conn, "Cadastro realizado com sucesso!")
@@ -295,7 +297,7 @@ func loginUser(conn net.Conn, data protocolo.LoginRequest) {
 		// Usuário não existe
 		msg := protocolo.Message{
 			Type: "LOGIN",
-			Data: protocolo.LoggedMessage{Status: "N_EXIST"},
+			Data: protocolo.LoginResponse{Status: "N_EXIST"},
 		}
 		sendJSON(conn, msg)
 		return
@@ -305,27 +307,42 @@ func loginUser(conn net.Conn, data protocolo.LoginRequest) {
 		// Usuário já está logado em outro lugar
 		msg := protocolo.Message{
 			Type: "LOGIN",
-			Data: protocolo.LoggedMessage{Status: "ONLINE_JA"},
+			Data: protocolo.LoginResponse{Status: "ONLINE_JA"},
 		}
 		sendJSON(conn, msg)
 		return
 	}
 
 	// Usuário existe e não está online -> loga
-	player.Conn = conn // Vincula o player a sua conexao
-	player.Online = true 
+	player.Conn = conn
+	player.Online = true
 
+	// Converte inventário do servidor para protocolo
+	invProto := protocolo.Inventario{
+		Cartas: make([]protocolo.Carta, len(player.Inventario.Cartas)),
+	}
+	for i, c := range player.Inventario.Cartas {
+		invProto.Cartas[i] = protocolo.Carta{
+			Nome:        c.Nome,
+			Raridade:   c.Raridade,
+			Envergadura: c.Envergadura,
+			Velocidade:  c.Velocidade,
+			Altura:      c.Altura,
+			Passageiros: c.Passageiros,
+		}
+	}
+
+	// Resposta completa com status + inventário + moedas
 	msg := protocolo.Message{
 		Type: "LOGIN",
-		Data: protocolo.LoggedMessage{Status: "LOGADO"},
+		Data: protocolo.LoginResponse{
+			Status:     "LOGADO",
+			Inventario: invProto,
+			Saldo:      player.Moedas,
+		},
 	}
 	sendJSON(conn, msg)
-
-	// aqui futuramente pode enviar inventário também
 }
-
-
-
 
 func createRoom(conn net.Conn) {
 	mu.Lock()
