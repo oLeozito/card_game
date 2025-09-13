@@ -161,7 +161,7 @@ func interpreter(conn net.Conn, fullMessage string) {
 		}
 
 		// Compra aprovada
-		carta, _ := buyCard(player)
+		carta := buyCard(player)
 		player.Inventario.Cartas = append(player.Inventario.Cartas, *carta)
 
 		// Converte carta e inventário para o tipo protocolo
@@ -364,8 +364,12 @@ func messageRouter(conn net.Conn, msg protocolo.ChatMessage) {
 		Type: "CHAT",
 		Data: msg,
 	}
-	sendJSON(room.Jogador1, jsonMsg)
-	sendJSON(room.Jogador2, jsonMsg)
+	if conn == room.Jogador1 {
+		sendJSON(room.Jogador2, jsonMsg)
+	} else if conn == room.Jogador2 {
+		sendJSON(room.Jogador1, jsonMsg)
+	}
+	
 }
 
 func sendPairing(conn net.Conn) {
@@ -482,9 +486,10 @@ func main() {
         return
     }
 	// Preenche a fila de pacotes de cartas.
-	for i := 0; i < 20; i++ {
+	for i := 0; i < 500; i++ {
     	fillCardStorage()
 	}
+	fmt.Println("Armazenamento preenchido com 500 cartas!")
 
 	listener, err := net.Listen("tcp", ":8080")
 	if err != nil {
