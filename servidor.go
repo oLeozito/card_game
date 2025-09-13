@@ -22,6 +22,7 @@ type User struct {
     Online    bool
     Inventario Inventario
 	Moedas int
+	Latencia  int64 // em milissegundos
 }
 
 type Carta struct {
@@ -128,77 +129,76 @@ func interpreter(conn net.Conn, fullMessage string) {
 		_ = mapToStruct(msg.Data, &data)
 		messageRouter(conn, data)
 	case "COMPRA":
-	mu.Lock()
-	defer mu.Unlock()
+		mu.Lock()
+		defer mu.Unlock()
 
-	player := findPlayerByConn(conn) // encontra o player
+		player := findPlayerByConn(conn) // encontra o player
 
-	if player == nil {
-		sendScreenMsg(conn, "Usuário não encontrado.")
-		return
-	}
-
-	if len(storage) == 0 {
-		resp := protocolo.CompraResponse{
-			Status: "EMPTY_STORAGE", // sem carta no storage
+		if player == nil {
+			sendScreenMsg(conn, "Usuário não encontrado.")
+			return
 		}
+
+		if len(storage) == 0 {
+			resp := protocolo.CompraResponse{
+				Status: "EMPTY_STORAGE", // sem carta no storage
+			}
+			sendJSON(conn, protocolo.Message{
+				Type: "COMPRA_RESPONSE",
+				Data: resp,
+			})
+			return
+		}
+
+		if player.Moedas < 10 {
+			resp := protocolo.CompraResponse{
+				Status: "NO_BALANCE", // saldo insuficiente
+			}
+			sendJSON(conn, protocolo.Message{
+				Type: "COMPRA_RESPONSE",
+				Data: resp,
+			})
+			return
+		}
+
+		// Compra aprovada
+		carta := buyCard(player)
+		player.Inventario.Cartas = append(player.Inventario.Cartas, *carta)
+
+		// Converte carta e inventário para o tipo protocolo
+		cartaProto := &protocolo.Carta{
+			Nome:        carta.Nome,
+			Raridade:    carta.Raridade,
+			Envergadura: carta.Envergadura,
+			Velocidade:  carta.Velocidade,
+			Altura:      carta.Altura,
+			Passageiros: carta.Passageiros,
+		}
+
+		invProto := protocolo.Inventario{
+			Cartas: make([]protocolo.Carta, len(player.Inventario.Cartas)),
+		}
+		for i, c := range player.Inventario.Cartas {
+			invProto.Cartas[i] = protocolo.Carta{
+				Nome:        c.Nome,
+				Raridade:    c.Raridade,
+				Envergadura: c.Envergadura,
+				Velocidade:  c.Velocidade,
+				Altura:      c.Altura,
+				Passageiros: c.Passageiros,
+			}
+		}
+
+		resp := protocolo.CompraResponse{
+			Status:     "COMPRA_APROVADA",
+			CartaNova:  cartaProto,
+			Inventario: invProto,
+		}
+
 		sendJSON(conn, protocolo.Message{
 			Type: "COMPRA_RESPONSE",
 			Data: resp,
 		})
-		return
-	}
-
-	if player.Moedas < 10 {
-		resp := protocolo.CompraResponse{
-			Status: "NO_BALANCE", // saldo insuficiente
-		}
-		sendJSON(conn, protocolo.Message{
-			Type: "COMPRA_RESPONSE",
-			Data: resp,
-		})
-		return
-	}
-
-	// Compra aprovada
-	carta := buyCard(player)
-	player.Inventario.Cartas = append(player.Inventario.Cartas, *carta)
-
-	// Converte carta e inventário para o tipo protocolo
-	cartaProto := &protocolo.Carta{
-		Nome:        carta.Nome,
-		Raridade:    carta.Raridade,
-		Envergadura: carta.Envergadura,
-		Velocidade:  carta.Velocidade,
-		Altura:      carta.Altura,
-		Passageiros: carta.Passageiros,
-	}
-
-	invProto := protocolo.Inventario{
-		Cartas: make([]protocolo.Carta, len(player.Inventario.Cartas)),
-	}
-	for i, c := range player.Inventario.Cartas {
-		invProto.Cartas[i] = protocolo.Carta{
-			Nome:        c.Nome,
-			Raridade:    c.Raridade,
-			Envergadura: c.Envergadura,
-			Velocidade:  c.Velocidade,
-			Altura:      c.Altura,
-			Passageiros: c.Passageiros,
-		}
-	}
-
-	resp := protocolo.CompraResponse{
-		Status:     "COMPRA_APROVADA",
-		CartaNova:  cartaProto,
-		Inventario: invProto,
-	}
-
-	sendJSON(conn, protocolo.Message{
-		Type: "COMPRA_RESPONSE",
-		Data: resp,
-	})
-
 
 	case "CHECK_BALANCE":
 		player := findPlayerByConn(conn)
@@ -215,6 +215,35 @@ func interpreter(conn net.Conn, fullMessage string) {
 			Type: "BALANCE_RESPONSE",
 			Data: resp,
 		})
+	case "CHECK_LATENCY":
+		player := findPlayerByConn(conn)
+		if player == nil {
+			sendScreenMsg(conn, "Usuário não encontrado.")
+			return
+		}
+
+		resp := protocolo.LatencyResponse{
+			Latencia: player.Latencia,
+		}
+
+		sendJSON(conn, protocolo.Message{
+			Type: "LATENCY_RESPONSE",
+			Data: resp,
+		})
+	
+	case "PONG":
+		player := findPlayerByConn(conn)
+		if player == nil {
+			return
+		}
+
+		var ts int64
+		_ = mapToStruct(msg.Data, &ts) // timestamp original do PING
+
+		// Latência em milissegundos
+		player.Latencia = (time.Now().UnixNano() - ts) / int64(time.Millisecond)
+
+
 	case "QUIT":
 		conn.Close()
 	default:
@@ -478,6 +507,21 @@ func buyCard(player *User) *Carta {
 	return &carta
 }
 
+func measureLatency(player *User) {
+    if player == nil || player.Conn == nil {
+        return
+    }
+
+    // Timestamp em nanossegundos
+    ts := time.Now().UnixNano()
+
+    pingMsg := protocolo.Message{
+        Type: "PING",
+        Data: ts,
+    }
+
+    sendJSON(player.Conn, pingMsg)
+}
 
 
 func findPlayerByConn(conn net.Conn) *User {
@@ -507,6 +551,20 @@ func main() {
     	fillCardStorage()
 	}
 	fmt.Println("Armazenamento preenchido com 500 cartas!")
+
+	// Funcao pra ficar monitorando o ping de TODOS os players.
+	go func() {
+        for {
+            time.Sleep(10 * time.Second)
+            mu.Lock()
+            for _, player := range players {
+                if player.Online {
+                    measureLatency(player)
+                }
+            }
+            mu.Unlock()
+        }
+    }()
 
 	listener, err := net.Listen("tcp", ":8080")
 	if err != nil {

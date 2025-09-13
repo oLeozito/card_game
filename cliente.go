@@ -36,6 +36,7 @@ func showMainMenu() {
 	fmt.Println("3. Criar sala Privada.")
 	fmt.Println("4. Consultar Saldo.")
 	fmt.Println("5. Abrir pacote de cartas.")
+	fmt.Println("6. Verificar ping.")
 	fmt.Println("0. Sair")
 	fmt.Printf("> ")
 }					
@@ -97,7 +98,7 @@ func sendJSON(writer *bufio.Writer, msg protocolo.Message) {
 }
 
 // Lê mensagens JSON do servidor
-func interpreter(reader *bufio.Reader, gameChannel chan string) {
+func interpreter(reader *bufio.Reader, writer *bufio.Writer, gameChannel chan string) {
 	for {
 		message, err := reader.ReadString('\n')
 		if err != nil {
@@ -148,6 +149,20 @@ func interpreter(reader *bufio.Reader, gameChannel chan string) {
 			_ = mapToStruct(msg.Data, &data)
 			fmt.Printf("Seu saldo atual de moedas: %d\n", data.Saldo)
 			currentBalance = data.Saldo
+		case "PING":
+			var ts int64
+			_ = mapToStruct(msg.Data, &ts) // recebe timestamp enviado pelo servidor
+
+			pong := protocolo.Message{
+				Type: "PONG",
+				Data: ts, // devolve o mesmo timestamp
+			}
+			sendJSON(writer, pong)
+		case "LATENCY_RESPONSE":
+			var resp protocolo.LatencyResponse
+			_ = mapToStruct(msg.Data, &resp)
+			fmt.Println("Sua latência é:", resp.Latencia, "ms")
+		
 		}
 	}
 }
@@ -186,7 +201,7 @@ func main() {
 	reader := bufio.NewReader(conn)
 
 	gameChannel := make(chan string)
-	go interpreter(reader, gameChannel)
+	go interpreter(reader, writer, gameChannel)
 
 	userInputReader := bufio.NewReader(os.Stdin)
 	currentState := LoginState
@@ -323,6 +338,12 @@ func main() {
 				}
 				sendJSON(writer, req)
 				currentState = StopState
+			case "6":
+				req := protocolo.Message{
+					Type: "CHECK_LATENCY",
+					Data: protocolo.LatencyRequest{},
+				}
+				sendJSON(writer, req)
 
 			case "0":
 				req := protocolo.Message{

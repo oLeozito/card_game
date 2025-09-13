@@ -69,7 +69,11 @@ type CompraResponse struct {
 type InventoryResponse struct {
     Inventario Inventario `json:"inventario"`
 }
+type LatencyRequest struct{}
 
+type LatencyResponse struct {
+    Latencia int64 `json:"latencia"`
+}
 
 type CheckBalance struct{}
 
