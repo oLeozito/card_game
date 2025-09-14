@@ -23,6 +23,7 @@ type User struct {
     Inventario Inventario
 	Moedas int
 	Latencia  int64 // em milissegundos
+	Deck []protocolo.Carta
 }
 
 type Carta struct {
@@ -242,7 +243,20 @@ func interpreter(conn net.Conn, fullMessage string) {
 
 		// Latência em milissegundos
 		player.Latencia = (time.Now().UnixNano() - ts) / int64(time.Millisecond)
+	
+	case "SET_DECK":
+		var req protocolo.SetDeckRequest
+		_ = mapToStruct(msg.Data, &req)
 
+		player := findPlayerByConn(conn)
+		if player == nil {
+			sendScreenMsg(conn, "Usuário não encontrado para montar deck.")
+			return
+		}
+
+		player.Deck = req.Cartas
+
+		sendScreenMsg(conn, "Deck salvo com sucesso!")
 
 	case "QUIT":
 		conn.Close()
@@ -495,7 +509,7 @@ func fillCardStorage() {
 
     // Adiciona carta normalmente ao final da fila
     storage = append(storage, cartaEscolhida)
-	
+
 	//fmt.Println("Carta do topo é: "+ storage[0].Nome) //Print de debug
 }
 

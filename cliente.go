@@ -202,6 +202,51 @@ func showInventory() {
     fmt.Println("======================")
 }
 
+func montarDeck(writer *bufio.Writer) {
+    if len(currentInventario.Cartas) < 4 {
+        fmt.Println("Você precisa ter pelo menos 4 cartas no inventário para montar um deck.")
+        return
+    }
+
+    showInventory()
+
+    var indices [4]int
+    for i := 0; i < 4; i++ {
+        fmt.Printf("Escolha a carta %d do deck (digite o número correspondente do inventário): ", i+1)
+        var escolha int
+        fmt.Scanln(&escolha)
+
+        if escolha < 1 || escolha > len(currentInventario.Cartas) {
+            fmt.Println("Índice inválido. Tente novamente.")
+            i-- // repete a mesma posição
+            continue
+        }
+
+        indices[i] = escolha - 1 // ajusta para índice base 0
+    }
+
+    // monta deck local
+    deck := []protocolo.Carta{
+        currentInventario.Cartas[indices[0]],
+        currentInventario.Cartas[indices[1]],
+        currentInventario.Cartas[indices[2]],
+        currentInventario.Cartas[indices[3]],
+    }
+
+    // envia para o servidor
+    req := protocolo.SetDeckRequest{Cartas: deck}
+    sendJSON(writer, protocolo.Message{
+        Type: "SET_DECK",
+        Data: req,
+    })
+
+    // mostra deck escolhido
+    fmt.Println("\n=== Seu Deck ===")
+    for i, c := range deck {
+        fmt.Printf("Carta %d: %s\n", i+1, c.Nome)
+    }
+    fmt.Println("================")
+}
 
 
 func main() {
@@ -364,7 +409,7 @@ func main() {
 				// Meu inventario
 				showInventory()
 			case "7":
-				// Montar Deck
+				montarDeck(writer)
 			case "8":
 				req := protocolo.Message{
 					Type: "CHECK_LATENCY",

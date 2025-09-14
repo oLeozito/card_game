@@ -14,6 +14,9 @@ type Inventario struct {
     Cartas []Carta `json:"cartas"`
 }
 
+type SetDeckRequest struct {
+    Cartas []Carta `json:"cartas"`
+}
 
 // Mensagem genérica que vai pelo socket
 type Message struct {
