@@ -495,6 +495,8 @@ func fillCardStorage() {
 
     // Adiciona carta normalmente ao final da fila
     storage = append(storage, cartaEscolhida)
+	
+	//fmt.Println("Carta do topo é: "+ storage[0].Nome) //Print de debug
 }
 
 func buyCard(player *User) *Carta {

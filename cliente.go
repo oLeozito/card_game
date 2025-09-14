@@ -36,7 +36,9 @@ func showMainMenu() {
 	fmt.Println("3. Criar sala Privada.")
 	fmt.Println("4. Consultar Saldo.")
 	fmt.Println("5. Abrir pacote de cartas.")
-	fmt.Println("6. Verificar ping.")
+	fmt.Println("6. Meu Inventário.")
+	fmt.Println("7. Montar meu deck.")
+	fmt.Println("8. Verificar ping.")
 	fmt.Println("0. Sair")
 	fmt.Printf("> ")
 }					
@@ -180,6 +182,26 @@ func readLine(reader *bufio.Reader) string {
 	line, _ := reader.ReadString('\n')
 	return strings.TrimSpace(line)
 }
+
+func showInventory() {
+    if len(currentInventario.Cartas) == 0 {
+        fmt.Println("Seu inventário está vazio.")
+        return
+    }
+
+    fmt.Println("\n=== Seu Inventário ===")
+    for i, carta := range currentInventario.Cartas {
+        fmt.Printf("\nCarta %d:\n", i+1)
+        fmt.Printf("Nome: %s\n", carta.Nome)
+        fmt.Printf("Raridade: %s\n", carta.Raridade)
+        fmt.Printf("Envergadura: %d\n", carta.Envergadura)
+        fmt.Printf("Velocidade Max.: %d\n", carta.Velocidade)
+        fmt.Printf("Altura Max.: %d\n", carta.Altura)
+        fmt.Printf("Capac. de Passageiros: %d\n", carta.Passageiros)
+    }
+    fmt.Println("======================")
+}
+
 
 
 func main() {
@@ -339,12 +361,16 @@ func main() {
 				sendJSON(writer, req)
 				currentState = StopState
 			case "6":
+				// Meu inventario
+				showInventory()
+			case "7":
+				// Montar Deck
+			case "8":
 				req := protocolo.Message{
 					Type: "CHECK_LATENCY",
 					Data: protocolo.LatencyRequest{},
 				}
 				sendJSON(writer, req)
-
 			case "0":
 				req := protocolo.Message{
 					Type: "QUIT",
