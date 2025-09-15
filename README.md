@@ -1,4 +1,4 @@
-# Super Trunfo Multiplayer - Fly Edition
+# Super Trunfo Multiplayer - Fly Edition ✈️
 
 Bem-vindo ao Super Trunfo - Fly Edition, um projeto de jogo de cartas multiplayer inspirado no clássico Super Trunfo focado em aeronaves, desenvolvido em Go. Este sistema implementa uma arquitetura cliente-servidor robusta, focada em concorrência, persistência de dados e uma experiência de jogo em tempo real através do terminal.
 
@@ -91,9 +91,9 @@ card_game/
 ├── protocolo/
 │   └── protocolo.go
 └── stress_tests/
-├── stresslogin.go
-├── stressmatch.go
-└── stressbuy.go
+│   ├── stresslogin.go
+│   ├── stressmatch.go
+│   └── stressbuy.go
 ```
 ### ❗ Importante: Configuração de IP
 
