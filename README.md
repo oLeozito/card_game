@@ -77,7 +77,7 @@ Para garantir que os dados dos jogadores não sejam perdidos, o servidor impleme
 ### Estrutura de Pastas
 
 Para garantir o funcionamento correto, o projeto deve seguir a seguinte estrutura:
-
+```
 card_game/
 ├── cliente.go
 ├── servidor.go
@@ -94,7 +94,7 @@ card_game/
 ├── stresslogin.go
 ├── stressmatch.go
 └── stressbuy.go
-
+```
 ### ❗ Importante: Configuração de IP
 
 Antes de executar, você **precisa** alterar o endereço de IP do servidor nos seguintes arquivos para que a conexão funcione:
@@ -112,13 +112,13 @@ docker-compose up --build
 ```
 Este comando irá construir as imagens e iniciar o contêiner do servidor. Você pode então executar o cliente localmente ou em outro contêiner.
 
-# Execução Local
+### Execução Local
 
-# Servidor
+### Servidor
 ```bash
 go run servidor.go
 ```
-# Cliente (Em outro terminal)
+### Cliente (Em outro terminal)
 ```bash
 go run cliente.go
 ```
