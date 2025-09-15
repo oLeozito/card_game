@@ -7,39 +7,56 @@ import (
 	"io"
 	"math/rand"
 	"net"
+	"os"
+	"path/filepath"
 	"sync"
 	"time"
-	"os"
-    "path/filepath"
-	"card_game/protocolo"
 
+	"card_game/protocolo"
 )
 
 type User struct {
-    Login     string
-    Senha     string
-	Conn      net.Conn
-    Online    bool
-    Inventario Inventario
-	Moedas int
-	Latencia  int64 // em milissegundos
-	Deck []protocolo.Carta
+	Login      string
+	Senha      string
+	Conn       net.Conn
+	Online     bool
+	Inventario Inventario
+	Moedas     int
+	Latencia   int64 // em milissegundos
+	Deck       []protocolo.Carta
 }
 
 type Carta struct {
-    Nome        string
-    Raridade    string
-    Envergadura int
-    Velocidade  int
-    Altura      int
-    Passageiros int
+	Nome        string
+	Raridade    string
+	Envergadura int
+	Velocidade  int
+	Altura      int
+	Passageiros int
 }
-
 
 type Inventario struct {
-    Cartas []Carta
+	Cartas []Carta
 }
 
+// Estrutura para armazenar a jogada de um jogador no round atual
+type PlayerMove struct {
+	CardIndex int
+	Attribute string
+	Submitted bool
+}
+
+// Estrutura para gerenciar o estado de uma partida
+type GameState struct {
+	Round         int
+	Player1Score  int
+	Player2Score  int
+	Player1Hand   []protocolo.Carta
+	Player2Hand   []protocolo.Carta
+	Player1Move   PlayerMove
+	Player2Move   PlayerMove
+	GameMutex     sync.Mutex
+}
 
 type Sala struct {
 	ID        string
@@ -47,18 +64,18 @@ type Sala struct {
 	Jogador2  net.Conn
 	Status    string
 	IsPrivate bool
+	Game      *GameState // Adicionado para gerenciar o estado do jogo
 }
 
 var (
 	salas         map[string]*Sala
 	salasEmEspera []*Sala
 	playersInRoom map[string]*Sala
-    players       map[string]*User  // Declarei como map porque posso usar futuramente pra verificar se ja esta online.
-	cartas        []Carta			// Lista de cartas EXISTENTES
-	storage       []Carta			// Armazem onde ficam as cartas a serem "compradas"
+	players       map[string]*User // Declarei como map porque posso usar futuramente pra verificar se ja esta online.
+	cartas        []Carta          // Lista de cartas EXISTENTES
+	storage       []Carta          // Armazem onde ficam as cartas a serem "compradas"
 	mu            sync.Mutex
 )
-
 
 func handleConnection(conn net.Conn) {
 	defer conn.Close()
@@ -75,13 +92,11 @@ func handleConnection(conn net.Conn) {
 
 			// Logout automático
 			mu.Lock()
-			for _, player := range players {
-				if player.Conn == conn {
-					player.Online = false
-					player.Conn = nil
-					fmt.Printf("Usuário %s deslogou automaticamente\n", player.Login)
-					break
-				}
+			player := findPlayerByConn(conn)
+			if player != nil {
+				player.Online = false
+				player.Conn = nil
+				fmt.Printf("Usuário %s deslogou automaticamente\n", player.Login)
 			}
 			mu.Unlock()
 
@@ -92,7 +107,6 @@ func handleConnection(conn net.Conn) {
 	}
 }
 
-
 func interpreter(conn net.Conn, fullMessage string) {
 	var msg protocolo.Message
 	if err := json.Unmarshal([]byte(fullMessage), &msg); err != nil {
@@ -101,27 +115,42 @@ func interpreter(conn net.Conn, fullMessage string) {
 	}
 
 	switch msg.Type {
-    case "CADASTRO":
-        // Cadastro colocar json.
-        var data protocolo.SignInRequest
-        _ = mapToStruct(msg.Data, &data)
-        // Consigo pegar data.Login e data.Senha e criar um usuario novo.
+	case "CADASTRO":
+		// Cadastro colocar json.
+		var data protocolo.SignInRequest
+		_ = mapToStruct(msg.Data, &data)
+		// Consigo pegar data.Login e data.Senha e criar um usuario novo.
 
-        cadastrarUser(conn,data)
+		cadastrarUser(conn, data)
 
-    case "LOGIN":
+	case "LOGIN":
 		var data protocolo.LoginRequest
-        _ = mapToStruct(msg.Data, &data)
+		_ = mapToStruct(msg.Data, &data)
 
-		loginUser(conn,data)
+		loginUser(conn, data)
 
 	case "CREATE_ROOM":
+		player := findPlayerByConn(conn)
+		if len(player.Deck) < 4 {
+			sendScreenMsg(conn, "Você precisa montar um deck de 4 cartas primeiro!")
+			return
+		}
 		createRoom(conn)
 	case "FIND_ROOM":
+		player := findPlayerByConn(conn)
+		if len(player.Deck) < 4 {
+			sendScreenMsg(conn, "Você precisa montar um deck de 4 cartas primeiro!")
+			return
+		}
 		var data protocolo.RoomRequest
 		_ = mapToStruct(msg.Data, &data)
 		findRoom(conn, data.Mode, "")
 	case "PRIV_ROOM":
+		player := findPlayerByConn(conn)
+		if len(player.Deck) < 4 {
+			sendScreenMsg(conn, "Você precisa montar um deck de 4 cartas primeiro!")
+			return
+		}
 		var data protocolo.RoomRequest
 		_ = mapToStruct(msg.Data, &data)
 		findRoom(conn, "", data.RoomCode)
@@ -231,7 +260,7 @@ func interpreter(conn net.Conn, fullMessage string) {
 			Type: "LATENCY_RESPONSE",
 			Data: resp,
 		})
-	
+
 	case "PONG":
 		player := findPlayerByConn(conn)
 		if player == nil {
@@ -243,7 +272,7 @@ func interpreter(conn net.Conn, fullMessage string) {
 
 		// Latência em milissegundos
 		player.Latencia = (time.Now().UnixNano() - ts) / int64(time.Millisecond)
-	
+
 	case "SET_DECK":
 		var req protocolo.SetDeckRequest
 		_ = mapToStruct(msg.Data, &req)
@@ -257,6 +286,9 @@ func interpreter(conn net.Conn, fullMessage string) {
 		player.Deck = req.Cartas
 
 		sendScreenMsg(conn, "Deck salvo com sucesso!")
+
+	case "PLAY_MOVE":
+		handlePlayMove(conn, msg.Data)
 
 	case "QUIT":
 		conn.Close()
@@ -280,12 +312,14 @@ func findRoom(conn net.Conn, mode string, roomCode string) {
 			sendPairing(sala.Jogador1)
 			sendPairing(sala.Jogador2)
 			removeSala(sala.ID)
+			// Inicia o Jogo
+			go startGame(sala)
 		} else {
 			codigo := randomGenerate()
 			novaSala := &Sala{
-				Jogador1: conn,
-				ID:       codigo,
-				Status:   "Waiting_Player",
+				Jogador1:  conn,
+				ID:        codigo,
+				Status:    "Waiting_Player",
 				IsPrivate: false,
 			}
 			salas[codigo] = novaSala
@@ -304,32 +338,34 @@ func findRoom(conn net.Conn, mode string, roomCode string) {
 		playersInRoom[sala.Jogador2.RemoteAddr().String()] = sala
 		sendPairing(sala.Jogador1)
 		sendPairing(sala.Jogador2)
+		// Inicia o Jogo
+		go startGame(sala)
 	} else {
 		sendScreenMsg(conn, "Opção inválida.")
 	}
 }
 
-func cadastrarUser(conn net.Conn, data protocolo.SignInRequest){
+func cadastrarUser(conn net.Conn, data protocolo.SignInRequest) {
+	mu.Lock()
+	defer mu.Unlock()
 
-    mu.Lock()
-    defer mu.Unlock()
+	if _, exists := players[data.Login]; exists {
+		sendScreenMsg(conn, "Login já existe.")
+		return
+	}
 
-    if _, exists := players[data.Login]; exists {
-        sendScreenMsg(conn, "Login já existe.")
-        return
-    }
-
-    players[data.Login] = &User{
+	players[data.Login] = &User{
 		Login:      data.Login,
 		Senha:      data.Senha,
 		Online:     false,
 		Conn:       nil,
 		Inventario: Inventario{},
-		Moedas:		50,
+		Moedas:     50,
 	}
 
-    sendScreenMsg(conn, "Cadastro realizado com sucesso!")
+	sendScreenMsg(conn, "Cadastro realizado com sucesso!")
 }
+
 func loginUser(conn net.Conn, data protocolo.LoginRequest) {
 	mu.Lock()
 	defer mu.Unlock()
@@ -367,7 +403,7 @@ func loginUser(conn net.Conn, data protocolo.LoginRequest) {
 	for i, c := range player.Inventario.Cartas {
 		invProto.Cartas[i] = protocolo.Carta{
 			Nome:        c.Nome,
-			Raridade:   c.Raridade,
+			Raridade:    c.Raridade,
 			Envergadura: c.Envergadura,
 			Velocidade:  c.Velocidade,
 			Altura:      c.Altura,
@@ -392,9 +428,9 @@ func createRoom(conn net.Conn) {
 	defer mu.Unlock()
 	codigo := randomGenerate()
 	novaSala := &Sala{
-		Jogador1: conn,
-		ID:       codigo,
-		Status:   "Waiting_Player",
+		Jogador1:  conn,
+		ID:        codigo,
+		Status:    "Waiting_Player",
 		IsPrivate: true,
 	}
 	salas[codigo] = novaSala
@@ -429,7 +465,6 @@ func messageRouter(conn net.Conn, msg protocolo.ChatMessage) {
 	} else if conn == room.Jogador2 {
 		sendJSON(room.Jogador1, jsonMsg)
 	}
-	
 }
 
 func sendPairing(conn net.Conn) {
@@ -463,20 +498,20 @@ func mapToStruct(input interface{}, target interface{}) error {
 }
 
 func carregarCartas() error {
-    path := filepath.Join("data", "cartas.json")
-    file, err := os.Open(path)
-    if err != nil {
-        return err
-    }
-    defer file.Close()
+	path := filepath.Join("data", "cartas.json")
+	file, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
 
-    decoder := json.NewDecoder(file)
-    if err := decoder.Decode(&cartas); err != nil {
-        return err
-    }
+	decoder := json.NewDecoder(file)
+	if err := decoder.Decode(&cartas); err != nil {
+		return err
+	}
 
-    fmt.Printf("Foram carregadas %d cartas do arquivo JSON.\n", len(cartas))
-    return nil
+	fmt.Printf("Foram carregadas %d cartas do arquivo JSON.\n", len(cartas))
+	return nil
 }
 
 func randomGenerate() string {
@@ -495,92 +530,334 @@ func randomGenerate() string {
 }
 
 // Funcao pra adicionar cartas aleatórias na fila "storage".
-
 func fillCardStorage() {
+	if len(cartas) == 0 {
+		fmt.Println("Nenhuma carta cadastrada para preencher o storage.")
+		return
+	}
 
-    if len(cartas) == 0 {
-        fmt.Println("Nenhuma carta cadastrada para preencher o storage.")
-        return
-    }
+	rand.Seed(time.Now().UnixNano())
+	idx := rand.Intn(len(cartas))
+	cartaEscolhida := cartas[idx]
 
-    rand.Seed(time.Now().UnixNano())
-    idx := rand.Intn(len(cartas))
-    cartaEscolhida := cartas[idx]
-
-    // Adiciona carta normalmente ao final da fila
-    storage = append(storage, cartaEscolhida)
+	// Adiciona carta normalmente ao final da fila
+	storage = append(storage, cartaEscolhida)
 
 	//fmt.Println("Carta do topo é: "+ storage[0].Nome) //Print de debug
 }
 
 func buyCard(player *User) *Carta {
-	carta := storage[0]       // pega a primeira carta
-	storage = storage[1:]     // remove da fila
+	carta := storage[0]   // pega a primeira carta
+	storage = storage[1:] // remove da fila
 
-	fillCardStorage()         // adiciona uma nova carta no storage
+	fillCardStorage() // adiciona uma nova carta no storage
 
-	player.Moedas -= 10       // desconta o valor da compra
+	player.Moedas -= 10 // desconta o valor da compra
 	return &carta
 }
 
 func measureLatency(player *User) {
-    if player == nil || player.Conn == nil {
-        return
-    }
+	if player == nil || player.Conn == nil {
+		return
+	}
 
-    // Timestamp em nanossegundos
-    ts := time.Now().UnixNano()
+	// Timestamp em nanossegundos
+	ts := time.Now().UnixNano()
 
-    pingMsg := protocolo.Message{
-        Type: "PING",
-        Data: ts,
-    }
+	pingMsg := protocolo.Message{
+		Type: "PING",
+		Data: ts,
+	}
 
-    sendJSON(player.Conn, pingMsg)
+	sendJSON(player.Conn, pingMsg)
 }
-
 
 func findPlayerByConn(conn net.Conn) *User {
-    for _, player := range players {
-        if player.Conn == conn {
-            return player
-        }
-    }
-    return nil
+	for _, player := range players {
+		if player.Conn == conn {
+			return player
+		}
+	}
+	return nil
+}
+
+// --- LÓGICA DO JOGO ---
+
+func startGame(sala *Sala) {
+	mu.Lock()
+	p1 := findPlayerByConn(sala.Jogador1)
+	p2 := findPlayerByConn(sala.Jogador2)
+	mu.Unlock()
+
+	if p1 == nil || p2 == nil {
+		// Lógica de erro, um jogador desconectou antes de começar
+		return
+	}
+	
+	// Copia os decks para não modificar o deck original do jogador
+	deck1 := make([]protocolo.Carta, len(p1.Deck))
+	copy(deck1, p1.Deck)
+	deck2 := make([]protocolo.Carta, len(p2.Deck))
+	copy(deck2, p2.Deck)
+
+	sala.Game = &GameState{
+		Round:        1,
+		Player1Score: 0,
+		Player2Score: 0,
+		Player1Hand:  deck1,
+		Player2Hand:  deck2,
+	}
+
+	// Envia mensagem de início de jogo
+	sendJSON(sala.Jogador1, protocolo.Message{Type: "GAME_START", Data: protocolo.GameStartMessage{Opponent: p2.Login}})
+	sendJSON(sala.Jogador2, protocolo.Message{Type: "GAME_START", Data: protocolo.GameStartMessage{Opponent: p1.Login}})
+
+	time.Sleep(1 * time.Second) // Pequena pausa
+	startRound(sala)
+}
+
+func startRound(sala *Sala) {
+	game := sala.Game
+	game.Player1Move = PlayerMove{Submitted: false}
+	game.Player2Move = PlayerMove{Submitted: false}
+
+	// Envia o estado do round para cada jogador
+	sendJSON(sala.Jogador1, protocolo.Message{Type: "ROUND_START", Data: protocolo.RoundStartMessage{Round: game.Round, Hand: game.Player1Hand}})
+	sendJSON(sala.Jogador2, protocolo.Message{Type: "ROUND_START", Data: protocolo.RoundStartMessage{Round: game.Round, Hand: game.Player2Hand}})
+}
+
+func handlePlayMove(conn net.Conn, data interface{}) {
+	var req protocolo.PlayMoveRequest
+	_ = mapToStruct(data, &req)
+
+	mu.Lock()
+	sala, ok := playersInRoom[conn.RemoteAddr().String()]
+	mu.Unlock()
+
+	if !ok || sala.Game == nil {
+		sendScreenMsg(conn, "Você não está em um jogo ativo.")
+		return
+	}
+	
+	sala.Game.GameMutex.Lock()
+	defer sala.Game.GameMutex.Unlock()
+
+	move := PlayerMove{CardIndex: req.CardIndex, Attribute: req.Attribute, Submitted: true}
+
+	if conn == sala.Jogador1 {
+		sala.Game.Player1Move = move
+	} else {
+		sala.Game.Player2Move = move
+	}
+
+	// Se ambos os jogadores fizeram suas jogadas, processa o round
+	if sala.Game.Player1Move.Submitted && sala.Game.Player2Move.Submitted {
+		processRound(sala)
+	}
+}
+
+func getAttributeValue(card protocolo.Carta, attribute string) int {
+	switch attribute {
+	case "Envergadura":
+		return card.Envergadura
+	case "Velocidade":
+		return card.Velocidade
+	case "Altura":
+		return card.Altura
+	case "Passageiros":
+		return card.Passageiros
+	default:
+		return 0
+	}
+}
+
+// Retorna 1 se p1 ganha, 2 se p2 ganha, 0 para empate
+func compareAttributes(v1, v2 int) int {
+	if v1 > v2 {
+		return 1
+	}
+	if v2 > v1 {
+		return 2
+	}
+	return 0
+}
+
+func processRound(sala *Sala) {
+	game := sala.Game
+	
+	p1Move := game.Player1Move
+	p2Move := game.Player2Move
+	
+	p1Card := game.Player1Hand[p1Move.CardIndex]
+	p2Card := game.Player2Hand[p2Move.CardIndex]
+	
+	p1AttrValueP1Choice := getAttributeValue(p1Card, p1Move.Attribute)
+	p2AttrValueP1Choice := getAttributeValue(p2Card, p1Move.Attribute)
+
+	p1AttrValueP2Choice := getAttributeValue(p1Card, p2Move.Attribute)
+	p2AttrValueP2Choice := getAttributeValue(p2Card, p2Move.Attribute)
+	
+	// Compara na característica escolhida por P1
+	resultP1Choice := compareAttributes(p1AttrValueP1Choice, p2AttrValueP1Choice)
+	// Compara na característica escolhida por P2
+	resultP2Choice := compareAttributes(p1AttrValueP2Choice, p2AttrValueP2Choice)
+
+	p1RoundPoints := 0
+	p2RoundPoints := 0
+
+	// Lógica de pontuação para o Jogador 1
+	if resultP1Choice == 1 && resultP2Choice == 1 { // Ganha nas duas
+		p1RoundPoints = 3
+	} else if (resultP1Choice == 1 && resultP2Choice == 2) || (resultP1Choice == 2 && resultP2Choice == 1) { // Ganha em uma, perde na outra
+		p1RoundPoints = 2
+	} else if (resultP1Choice == 1 && resultP2Choice == 0) || (resultP1Choice == 0 && resultP2Choice == 1) { // Ganha em uma, empata na outra
+		p1RoundPoints = 2
+	} else if resultP1Choice == 0 && resultP2Choice == 0 { // Empata nas duas
+		p1RoundPoints = 2
+	} else if (resultP1Choice == 2 && resultP2Choice == 0) || (resultP1Choice == 0 && resultP2Choice == 2) { // Perde em uma, empata na outra
+		p1RoundPoints = 1
+	} // Se perde nas duas (resultP1Choice == 2 && resultP2Choice == 2), p1RoundPoints = 0
+
+	// Lógica de pontuação para o Jogador 2 (é o inverso do jogador 1)
+	if resultP1Choice == 2 && resultP2Choice == 2 { // Ganha nas duas
+		p2RoundPoints = 3
+	} else if (resultP1Choice == 2 && resultP2Choice == 1) || (resultP1Choice == 1 && resultP2Choice == 2) {
+		p2RoundPoints = 2
+	} else if (resultP1Choice == 2 && resultP2Choice == 0) || (resultP1Choice == 0 && resultP2Choice == 2) {
+		p2RoundPoints = 2
+	} else if resultP1Choice == 0 && resultP2Choice == 0 {
+		p2RoundPoints = 2
+	} else if (resultP1Choice == 1 && resultP2Choice == 0) || (resultP1Choice == 0 && resultP2Choice == 1) {
+		p2RoundPoints = 1
+	}
+
+	game.Player1Score += p1RoundPoints
+	game.Player2Score += p2RoundPoints
+
+	mu.Lock()
+	p1 := findPlayerByConn(sala.Jogador1)
+	p2 := findPlayerByConn(sala.Jogador2)
+	mu.Unlock()
+
+	resultMsg := protocolo.RoundResultMessage{
+		Round: game.Round,
+		Player1Move: protocolo.PlayerMoveInfo{
+			PlayerName: p1.Login, CardName: p1Card.Nome, Attribute: p1Move.Attribute, AttributeValue: p1AttrValueP1Choice,
+		},
+		Player2Move: protocolo.PlayerMoveInfo{
+			PlayerName: p2.Login, CardName: p2Card.Nome, Attribute: p2Move.Attribute, AttributeValue: p2AttrValueP2Choice,
+		},
+		RoundPointsP1: p1RoundPoints,
+		RoundPointsP2: p2RoundPoints,
+		TotalScoreP1:  game.Player1Score,
+		TotalScoreP2:  game.Player2Score,
+		ResultText:    fmt.Sprintf("Fim do Round %d!", game.Round),
+	}
+	
+	sendJSON(sala.Jogador1, protocolo.Message{Type: "ROUND_RESULT", Data: resultMsg})
+	sendJSON(sala.Jogador2, protocolo.Message{Type: "ROUND_RESULT", Data: resultMsg})
+
+	// Remove as cartas usadas das mãos
+	// Para evitar problemas com slice, criamos novas listas
+	newHand1 := []protocolo.Carta{}
+	for i, card := range game.Player1Hand {
+		if i != p1Move.CardIndex {
+			newHand1 = append(newHand1, card)
+		}
+	}
+	game.Player1Hand = newHand1
+
+	newHand2 := []protocolo.Carta{}
+	for i, card := range game.Player2Hand {
+		if i != p2Move.CardIndex {
+			newHand2 = append(newHand2, card)
+		}
+	}
+	game.Player2Hand = newHand2
+	
+	game.Round++
+	if game.Round > 3 {
+		endGame(sala)
+	} else {
+		time.Sleep(5 * time.Second) // Tempo para os jogadores verem o resultado
+		startRound(sala)
+	}
+}
+
+func endGame(sala *Sala) {
+	game := sala.Game
+	mu.Lock()
+	p1 := findPlayerByConn(sala.Jogador1)
+	p2 := findPlayerByConn(sala.Jogador2)
+	mu.Unlock()
+
+	var winner string
+	var coins int
+
+	if game.Player1Score > game.Player2Score {
+		winner = p1.Login
+		coins = game.Player1Score
+		p1.Moedas += coins
+	} else if game.Player2Score > game.Player1Score {
+		winner = p2.Login
+		coins = game.Player2Score
+		p2.Moedas += coins
+	} else {
+		winner = "EMPATE"
+		coins = 0 // ou pode dar moedas para ambos
+	}
+
+	gameOverMsg := protocolo.GameOverMessage{
+		Winner:       winner,
+		FinalScoreP1: game.Player1Score,
+		FinalScoreP2: game.Player2Score,
+		CoinsEarned:  coins,
+	}
+
+	sendJSON(sala.Jogador1, protocolo.Message{Type: "GAME_OVER", Data: gameOverMsg})
+	sendJSON(sala.Jogador2, protocolo.Message{Type: "GAME_OVER", Data: gameOverMsg})
+
+	// Limpa a sala
+	mu.Lock()
+	delete(playersInRoom, sala.Jogador1.RemoteAddr().String())
+	delete(playersInRoom, sala.Jogador2.RemoteAddr().String())
+	delete(salas, sala.ID)
+	mu.Unlock()
 }
 
 
+// --- FIM DA LÓGICA DO JOGO ---
 
 func main() {
-    players = make(map[string]*User)
+	players = make(map[string]*User)
 	salas = make(map[string]*Sala)
 	salasEmEspera = make([]*Sala, 0)
 	playersInRoom = make(map[string]*Sala)
 
 	// Chama a funcao pra carregar o Json de cartas cadastradas.
 	if err := carregarCartas(); err != nil {
-        fmt.Println("Erro ao carregar cartas:", err)
-        return
-    }
+		fmt.Println("Erro ao carregar cartas:", err)
+		return
+	}
 	// Preenche a fila de pacotes de cartas.
 	for i := 0; i < 500; i++ {
-    	fillCardStorage()
+		fillCardStorage()
 	}
 	fmt.Println("Armazenamento preenchido com 500 cartas!")
 
 	// Funcao pra ficar monitorando o ping de TODOS os players.
 	go func() {
-        for {
-            time.Sleep(10 * time.Second)
-            mu.Lock()
-            for _, player := range players {
-                if player.Online {
-                    measureLatency(player)
-                }
-            }
-            mu.Unlock()
-        }
-    }()
+		for {
+			time.Sleep(10 * time.Second)
+			mu.Lock()
+			for _, player := range players {
+				if player.Online {
+					measureLatency(player)
+				}
+			}
+			mu.Unlock()
+		}
+	}()
 
 	listener, err := net.Listen("tcp", ":8080")
 	if err != nil {
