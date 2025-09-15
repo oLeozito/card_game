@@ -266,7 +266,6 @@ func fillCardStorage() {
 		return
 	}
 
-	rand.Seed(time.Now().UnixNano())
 	idx := rand.Intn(len(cartas))
 	cartaEscolhida := cartas[idx]
 
@@ -856,6 +855,8 @@ func interpreter(conn net.Conn, fullMessage string) {
 }
 
 func main() {
+	rand.Seed(time.Now().UnixNano())
+	
 	// Iniciando maps e listas
 	players = make(map[string]*User)
 	salas = make(map[string]*Sala)
