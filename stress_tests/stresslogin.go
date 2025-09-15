@@ -15,7 +15,7 @@ import (
 // ============== PARÂMETROS EDITÁVEIS ==============
 const (
 	// Altere aqui a quantidade de clientes para simular
-	numClients = 200
+	numClients = 5000
 
 	serverAddress = "127.0.0.1:8080"
 )

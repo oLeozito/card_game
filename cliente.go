@@ -562,19 +562,19 @@ func main() {
 
 		} else if currentState == WaitingState {
 			fmt.Println("Aguardando um oponente...")
-			time.Sleep(10 * time.Second)
+			time.Sleep(100 * time.Millisecond)
 
 		} else if currentState == InGameState {
 			// Neste estado, o jogo está ativo, mas não é a vez do jogador.
     		// O loop principal pausa, aguardando que a goroutine 'interpreter' receba uma mensagem
     		// do servidor e altere o 'currentState' (para TurnState ou MenuState, por exemplo).
-			time.Sleep(1 * time.Second) // Sleep pra evitar de o for ficar girando freneticamente enquanto espero response do servidor.
+			time.Sleep(100 * time.Millisecond) // Sleep pra evitar de o for ficar girando freneticamente enquanto espero response do servidor.
 
 		} else if currentState == TurnState {
 			handleGameTurn(userInputReader, writer)
 		} else {
 			// Faz nada no StopState
-			time.Sleep(1 * time.Second)
+			time.Sleep(100 * time.Millisecond)
 		}
 	}
 }
