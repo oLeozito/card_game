@@ -8,11 +8,11 @@ import (
 	"math/rand"
 	"net"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"sync"
-	"time"
-	"os/signal"
 	"syscall"
+	"time"
 
 	"card_game/protocolo"
 )
@@ -81,6 +81,7 @@ var (
 	storage       []Carta          // Armazem onde ficam as cartas a serem "compradas"
 	mu            sync.Mutex
 )
+
 const playerDataFile = "data/players.json"
 
 // FUNCOES PARA PERSISTENCIA DE DADOS
@@ -107,6 +108,7 @@ func loadPlayerData() {
 
 	fmt.Printf("%d jogadores carregados do arquivo %s.\n", len(players), playerDataFile)
 }
+
 // savePlayerData salva os dados dos jogadores em um arquivo JSON.
 func savePlayerData() {
 	fmt.Println("\nSalvando dados dos jogadores...")
@@ -276,6 +278,7 @@ func findPlayerByConn(conn net.Conn) *User {
 	}
 	return nil
 }
+
 // Funcao pra medir a latencia periodicamente usando um ping-pong
 func measureLatency(player *User) {
 	if player == nil || player.Conn == nil {
@@ -312,6 +315,7 @@ func carregarCartas() error {
 	fmt.Printf("Foram carregadas %d cartas do arquivo JSON.\n", len(cartas))
 	return nil
 }
+
 // Funcao pra adicionar cartas aleatórias na fila "storage".
 func fillCardStorage() {
 	if len(cartas) == 0 {
@@ -434,7 +438,7 @@ func startGame(sala *Sala) {
 		// Lógica de erro, um jogador desconectou antes de começar
 		return
 	}
-	
+
 	// Copia os decks para não modificar o deck original do jogador
 	deck1 := make([]protocolo.Carta, len(p1.Deck))
 	copy(deck1, p1.Deck)
@@ -477,7 +481,7 @@ func handlePlayMove(conn net.Conn, data interface{}) {
 		sendScreenMsg(conn, "Você não está em um jogo ativo.")
 		return
 	}
-	
+
 	sala.Game.GameMutex.Lock()
 	defer sala.Game.GameMutex.Unlock()
 
@@ -508,6 +512,7 @@ func getAttributeValue(card protocolo.Carta, attribute string) int {
 		return 0
 	}
 }
+
 // Retorna 1 se p1 ganha, 2 se p2 ganha, 0 para empate
 func compareAttributes(v1, v2 int) int {
 	if v1 > v2 {
@@ -520,13 +525,13 @@ func compareAttributes(v1, v2 int) int {
 }
 func processRound(sala *Sala) {
 	game := sala.Game
-	
+
 	p1Move := game.Player1Move
 	p2Move := game.Player2Move
-	
+
 	p1Card := game.Player1Hand[p1Move.CardIndex]
 	p2Card := game.Player2Hand[p2Move.CardIndex]
-	
+
 	// Atributo escolhido pelo player 1
 	p1AttrValueP1Choice := getAttributeValue(p1Card, p1Move.Attribute)
 	p2AttrValueP1Choice := getAttributeValue(p2Card, p1Move.Attribute)
@@ -534,7 +539,7 @@ func processRound(sala *Sala) {
 	// Atributo escolhido pelo player 2
 	p1AttrValueP2Choice := getAttributeValue(p1Card, p2Move.Attribute)
 	p2AttrValueP2Choice := getAttributeValue(p2Card, p2Move.Attribute)
-	
+
 	// Compara na característica escolhida por P1
 	resultP1Choice := compareAttributes(p1AttrValueP1Choice, p2AttrValueP1Choice)
 	// Compara na característica escolhida por P2
@@ -593,7 +598,7 @@ func processRound(sala *Sala) {
 		TotalScoreP2:  game.Player2Score,
 		ResultText:    fmt.Sprintf("Fim do Round %d!", game.Round),
 	}
-	
+
 	sendJSON(sala.Jogador1, protocolo.Message{Type: "ROUND_RESULT", Data: resultMsg})
 	sendJSON(sala.Jogador2, protocolo.Message{Type: "ROUND_RESULT", Data: resultMsg})
 
@@ -606,7 +611,7 @@ func processRound(sala *Sala) {
 		}
 	}
 	game.Player1Hand = newHand1
-	
+
 	// Player 2
 	newHand2 := []protocolo.Carta{}
 	for i, card := range game.Player2Hand {
@@ -615,7 +620,7 @@ func processRound(sala *Sala) {
 		}
 	}
 	game.Player2Hand = newHand2
-	
+
 	// Proximo Round
 	game.Round++
 	if game.Round > 3 {
@@ -626,53 +631,53 @@ func processRound(sala *Sala) {
 	}
 }
 func endGame(sala *Sala) {
-    game := sala.Game
-    mu.Lock()
-    p1 := findPlayerByConn(sala.Jogador1)
-    p2 := findPlayerByConn(sala.Jogador2)
-    mu.Unlock()
+	game := sala.Game
+	mu.Lock()
+	p1 := findPlayerByConn(sala.Jogador1)
+	p2 := findPlayerByConn(sala.Jogador2)
+	mu.Unlock()
 
-    // Atribui moedas relativas aos pontos pra os dois jogadores
-    p1.Moedas += game.Player1Score
-    p2.Moedas += game.Player2Score
+	// Atribui moedas relativas aos pontos pra os dois jogadores
+	p1.Moedas += game.Player1Score
+	p2.Moedas += game.Player2Score
 
-    var winner string
-    if game.Player1Score > game.Player2Score {
-        winner = p1.Login
-    } else if game.Player2Score > game.Player1Score {
-        winner = p2.Login
-    } else {
-        winner = "EMPATE"
-    }
+	var winner string
+	if game.Player1Score > game.Player2Score {
+		winner = p1.Login
+	} else if game.Player2Score > game.Player1Score {
+		winner = p2.Login
+	} else {
+		winner = "EMPATE"
+	}
 
-    // Cria mensagens personalizadas para cada jogador ---
+	// Cria mensagens personalizadas para cada jogador ---
 
-    // Mensagem para o Jogador 1
-    gameOverMsgP1 := protocolo.GameOverMessage{
-        Winner:       winner,
-        FinalScoreP1: game.Player1Score,
-        FinalScoreP2: game.Player2Score,
-        CoinsEarned:  game.Player1Score, // Informa o ganho individual do P1
-    }
-    sendJSON(sala.Jogador1, protocolo.Message{Type: "GAME_OVER", Data: gameOverMsgP1})
+	// Mensagem para o Jogador 1
+	gameOverMsgP1 := protocolo.GameOverMessage{
+		Winner:       winner,
+		FinalScoreP1: game.Player1Score,
+		FinalScoreP2: game.Player2Score,
+		CoinsEarned:  game.Player1Score, // Informa o ganho individual do P1
+	}
+	sendJSON(sala.Jogador1, protocolo.Message{Type: "GAME_OVER", Data: gameOverMsgP1})
 
-    // Mensagem para o Jogador 2
-    gameOverMsgP2 := protocolo.GameOverMessage{
-        Winner:       winner,
-        FinalScoreP1: game.Player1Score,
-        FinalScoreP2: game.Player2Score,
-        CoinsEarned:  game.Player2Score, // Informa o ganho individual do P2
-    }
-    sendJSON(sala.Jogador2, protocolo.Message{Type: "GAME_OVER", Data: gameOverMsgP2})
+	// Mensagem para o Jogador 2
+	gameOverMsgP2 := protocolo.GameOverMessage{
+		Winner:       winner,
+		FinalScoreP1: game.Player1Score,
+		FinalScoreP2: game.Player2Score,
+		CoinsEarned:  game.Player2Score, // Informa o ganho individual do P2
+	}
+	sendJSON(sala.Jogador2, protocolo.Message{Type: "GAME_OVER", Data: gameOverMsgP2})
 
-
-    // Limpa a sala
-    mu.Lock()
-    delete(playersInRoom, sala.Jogador1.RemoteAddr().String())
-    delete(playersInRoom, sala.Jogador2.RemoteAddr().String())
-    delete(salas, sala.ID)
-    mu.Unlock()
+	// Limpa a sala
+	mu.Lock()
+	delete(playersInRoom, sala.Jogador1.RemoteAddr().String())
+	delete(playersInRoom, sala.Jogador2.RemoteAddr().String())
+	delete(salas, sala.ID)
+	mu.Unlock()
 }
+
 //#######################################################
 // FIM DA LÓGICA DO JOGO
 
@@ -688,10 +693,9 @@ func handleConnection(conn net.Conn) {
 			if err == io.EOF {
 				fmt.Printf("Conexão com %s encerrada pelo cliente.\n", conn.RemoteAddr())
 			} else {
-				fmt.Println("Erro ao ler dados:", err)
+				// Este erro é esperado quando a conexão é fechada, podemos ignorá-lo ou logar de forma mais branda
+				// fmt.Printf("Erro ao ler dados de %s: %v\n", conn.RemoteAddr(), err)
 			}
-
-			// Logout automático
 			mu.Lock()
 			player := findPlayerByConn(conn)
 			if player != nil {
@@ -700,20 +704,21 @@ func handleConnection(conn net.Conn) {
 				fmt.Printf("Usuário %s deslogou automaticamente\n", player.Login)
 			}
 			mu.Unlock()
-
-			// Posso verificar se o jogador ta em alguma sala, desconectar ele e fazer o outro ganhar
 			return
 		}
-		interpreter(conn, message)
+		
+		if !interpreter(conn, message) {
+			break
+		}
 	}
 }
 
 // Funcao que recebe as requests interpreta e devolve uma response.
-func interpreter(conn net.Conn, fullMessage string) {
+func interpreter(conn net.Conn, fullMessage string) bool {
 	var msg protocolo.Message
 	if err := json.Unmarshal([]byte(fullMessage), &msg); err != nil {
 		sendScreenMsg(conn, "Mensagem inválida.")
-		return
+		return true
 	}
 
 	switch msg.Type {
@@ -735,7 +740,7 @@ func interpreter(conn net.Conn, fullMessage string) {
 		player := findPlayerByConn(conn)
 		if len(player.Deck) < 4 {
 			sendScreenMsg(conn, "Você precisa montar um deck de 4 cartas primeiro!")
-			return
+			return true
 		}
 		createRoom(conn)
 
@@ -743,7 +748,7 @@ func interpreter(conn net.Conn, fullMessage string) {
 		player := findPlayerByConn(conn)
 		if len(player.Deck) < 4 {
 			sendScreenMsg(conn, "Você precisa montar um deck de 4 cartas primeiro!")
-			return
+			return true
 		}
 		var data protocolo.RoomRequest
 		_ = mapToStruct(msg.Data, &data)
@@ -753,7 +758,7 @@ func interpreter(conn net.Conn, fullMessage string) {
 		player := findPlayerByConn(conn)
 		if len(player.Deck) < 4 {
 			sendScreenMsg(conn, "Você precisa montar um deck de 4 cartas primeiro!")
-			return
+			return true
 		}
 		var data protocolo.RoomRequest
 		_ = mapToStruct(msg.Data, &data)
@@ -772,7 +777,7 @@ func interpreter(conn net.Conn, fullMessage string) {
 
 		if player == nil {
 			sendScreenMsg(conn, "Usuário não encontrado.")
-			return
+			return true
 		}
 
 		if len(storage) == 0 {
@@ -783,7 +788,7 @@ func interpreter(conn net.Conn, fullMessage string) {
 				Type: "COMPRA_RESPONSE",
 				Data: resp,
 			})
-			return
+			return true
 		}
 
 		if player.Moedas < 10 {
@@ -794,7 +799,7 @@ func interpreter(conn net.Conn, fullMessage string) {
 				Type: "COMPRA_RESPONSE",
 				Data: resp,
 			})
-			return
+			return true
 		}
 
 		// Compra aprovada
@@ -843,7 +848,7 @@ func interpreter(conn net.Conn, fullMessage string) {
 		player := findPlayerByConn(conn)
 		if player == nil {
 			sendScreenMsg(conn, "Usuário não encontrado.")
-			return
+			return true
 		}
 
 		resp := protocolo.BalanceResponse{
@@ -859,7 +864,7 @@ func interpreter(conn net.Conn, fullMessage string) {
 		player := findPlayerByConn(conn)
 		if player == nil {
 			sendScreenMsg(conn, "Usuário não encontrado.")
-			return
+			return true
 		}
 
 		resp := protocolo.LatencyResponse{
@@ -874,7 +879,7 @@ func interpreter(conn net.Conn, fullMessage string) {
 	case "PONG":
 		player := findPlayerByConn(conn)
 		if player == nil {
-			return
+			return true
 		}
 
 		var ts int64
@@ -890,7 +895,7 @@ func interpreter(conn net.Conn, fullMessage string) {
 		player := findPlayerByConn(conn)
 		if player == nil {
 			sendScreenMsg(conn, "Usuário não encontrado para montar deck.")
-			return
+			return true
 		}
 
 		player.Deck = req.Cartas
@@ -900,14 +905,13 @@ func interpreter(conn net.Conn, fullMessage string) {
 		handlePlayMove(conn, msg.Data)
 
 	case "QUIT":
-		conn.Close()
-
+		return false
+		
 	default:
 		sendScreenMsg(conn, "Comando inválido.")
 	}
+	return true
 }
-
-// Arquivo: servidor.go
 
 func main() {
 	rand.Seed(time.Now().UnixNano())
@@ -955,7 +959,7 @@ func main() {
 			mu.Unlock()
 		}
 	}()
-	
+
 	// Escuta na porta 8080
 	listener, err := net.Listen("tcp", ":8080")
 	if err != nil {
