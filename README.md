@@ -103,7 +103,7 @@ Antes de executar, você **precisa** alterar o endereço de IP do servidor nos s
 
 Substitua `"127.0.0.1:8080"` pelo IP da máquina onde o servidor está rodando e mantenha a porta `8080`.
 
-### Execução com Docker
+# 🐳 Execução com Docker
 
 O projeto é totalmente containerizado. Com o Docker e o Docker Compose instalados, basta executar:
 
@@ -112,12 +112,13 @@ docker-compose up --build
 ```
 Este comando irá construir as imagens e iniciar o contêiner do servidor. Você pode então executar o cliente localmente ou em outro contêiner.
 
-#Execução Local
-#Servidor
+# Execução Local
+
+# Servidor
 ```bash
 go run servidor.go
 ```
-#Cliente (Em outro terminal)
+# Cliente (Em outro terminal)
 ```bash
 go run cliente.go
 ```
