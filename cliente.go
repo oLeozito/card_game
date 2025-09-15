@@ -36,6 +36,31 @@ var (
 	currentState      GameState
 )
 
+// FUNCOES IMPORTANTES PRO FUNCIONAMENTO DO PROGRAMA
+// envia qualquer struct em JSON pelo writer
+func sendJSON(writer *bufio.Writer, msg protocolo.Message) {
+	jsonData, _ := json.Marshal(msg)
+	writer.Write(jsonData)
+	writer.WriteString("\n")
+	writer.Flush()
+}
+
+func mapToStruct(input interface{}, target interface{}) error {
+	bytes, err := json.Marshal(input)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(bytes, target)
+}
+// ------------------------------------
+
+// Funcao pra ajudar na leitura de entradas
+func readLine(reader *bufio.Reader) string {
+	line, _ := reader.ReadString('\n')
+	return strings.TrimSpace(line)
+}
+
+// FUNCOES PRA MOSTRAR ALGO NA TELA
 func showMainMenu() {
 	fmt.Println("\nEscolha uma opção:")
 	fmt.Println("1. Entrar em Sala Pública.")
@@ -67,28 +92,6 @@ func showHelpMenu() {
 	fmt.Println("=====================")
 }
 
-// envia qualquer struct em JSON pelo writer
-func sendJSON(writer *bufio.Writer, msg protocolo.Message) {
-	jsonData, _ := json.Marshal(msg)
-	writer.Write(jsonData)
-	writer.WriteString("\n")
-	writer.Flush()
-}
-
-func mapToStruct(input interface{}, target interface{}) error {
-	bytes, err := json.Marshal(input)
-	if err != nil {
-		return err
-	}
-	return json.Unmarshal(bytes, target)
-}
-
-// Funcao pra ajudar na leitura de entradas
-func readLine(reader *bufio.Reader) string {
-	line, _ := reader.ReadString('\n')
-	return strings.TrimSpace(line)
-}
-
 func showInventory() {
 	if len(currentInventario.Cartas) == 0 {
 		fmt.Println("Seu inventário está vazio.")
@@ -107,7 +110,9 @@ func showInventory() {
 	}
 	fmt.Println("======================")
 }
+// ------------------------------------
 
+// FUNCOES PARA FUNCIONAMENTO DE PARTIDA
 func montarDeck(writer *bufio.Writer) {
 	if len(currentInventario.Cartas) < 4 {
 		fmt.Println("Você precisa ter pelo menos 4 cartas no inventário para montar um deck.")
@@ -346,7 +351,7 @@ func interpreter(reader *bufio.Reader, writer *bufio.Writer, gameChannel chan st
 		}
 	}
 }
-
+// FUNCAO PRINCIPAL
 func main() {
 	var conn net.Conn
 	var err error

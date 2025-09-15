@@ -1,5 +1,6 @@
 package protocolo
 
+// Declaracoes globais (servidor e cliente)
 type Carta struct {
 	Nome        string `json:"nome"`
 	Raridade    string `json:"raridade"`
@@ -13,10 +14,6 @@ type Inventario struct {
 	Cartas []Carta `json:"cartas"`
 }
 
-type SetDeckRequest struct {
-	Cartas []Carta `json:"cartas"`
-}
-
 // Mensagem genérica que vai pelo socket
 type Message struct {
 	Type string      `json:"type"` // Tipo de comando (ex: "LOGIN", "CHAT", "FIND_ROOM")
@@ -25,32 +22,10 @@ type Message struct {
 
 // Estruturas específicas de cada tipo de mensagem
 
+// Login e Cadastro
 type LoginRequest struct {
 	Login string `json:"login"`
 	Senha string `json:"senha"`
-}
-
-type SignInRequest struct {
-	Login string `json:"login"`
-	Senha string `json:"senha"`
-}
-
-type ChatMessage struct {
-	From    string `json:"from"`
-	Content string `json:"content"`
-}
-
-type RoomRequest struct {
-	RoomCode string `json:"room_code,omitempty"`
-	Mode     string `json:"mode,omitempty"` // "PUBLIC" ou "PRIVATE"
-}
-
-type ScreenMessage struct {
-	Content string `json:"content"`
-}
-
-type PairingMessage struct {
-	Status string `json:"status"` // "PAREADO"
 }
 
 type LoginResponse struct {
@@ -59,6 +34,32 @@ type LoginResponse struct {
 	Saldo      int        `json:"saldo"`      // moedas atuais
 }
 
+type SignInRequest struct {
+	Login string `json:"login"`
+	Senha string `json:"senha"`
+}
+
+// Mensagens
+type ChatMessage struct {
+	From    string `json:"from"`
+	Content string `json:"content"`
+}
+
+type ScreenMessage struct {
+	Content string `json:"content"`
+}
+
+// Pareamento e sala
+type RoomRequest struct {
+	RoomCode string `json:"room_code,omitempty"`
+	Mode     string `json:"mode,omitempty"` // "PUBLIC" ou "PRIVATE"
+}
+
+type PairingMessage struct {
+	Status string `json:"status"` // "PAREADO"
+}
+
+// Compra de cartas e inventario
 type OpenPackageRequest struct{}
 
 type CompraResponse struct {
@@ -70,19 +71,26 @@ type CompraResponse struct {
 type InventoryResponse struct {
 	Inventario Inventario `json:"inventario"`
 }
-type LatencyRequest struct{}
 
-type LatencyResponse struct {
-	Latencia int64 `json:"latencia"`
+type SetDeckRequest struct {
+	Cartas []Carta `json:"cartas"`
 }
 
+// Gerenciamento de moedas
 type CheckBalance struct{}
 
 type BalanceResponse struct {
 	Saldo int `json:"saldo"`
 }
 
-// --- ESTRUTURAS ADICIONADAS PARA A PARTIDA
+// Check de Latencia
+type LatencyRequest struct{}
+
+type LatencyResponse struct {
+	Latencia int64 `json:"latencia"`
+}
+
+// ESTRUTURAS PARA A PARTIDA
 
 type GameStartMessage struct {
 	Opponent string `json:"opponent"`
