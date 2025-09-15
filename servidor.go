@@ -107,7 +107,6 @@ func loadPlayerData() {
 
 	fmt.Printf("%d jogadores carregados do arquivo %s.\n", len(players), playerDataFile)
 }
-
 // savePlayerData salva os dados dos jogadores em um arquivo JSON.
 func savePlayerData() {
 	fmt.Println("\nSalvando dados dos jogadores...")
