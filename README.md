@@ -8,7 +8,7 @@ O projeto consiste em um servidor central que gerencia toda a lógica do jogo e 
 
 ## ✨ Features Principais
 
--   **Sistema de Contas:** Cadastro e login de jogadores com persistência de dados. **Um novo jogador começa com um saldo inicial de 50 moedas**.
+-   **Sistema de Contas:** Cadastro e login de jogadores com persistência de dados. Um novo jogador começa com um saldo inicial de 50 moedas.
 -   **Matchmaking:** Salas públicas com fila de espera e salas privadas com códigos de 6 dígitos.
 -   **Jogabilidade Estratégica:** Partidas 1v1 com 3 rodadas, onde os jogadores escolhem cartas e atributos para competir.
 -   **Sistema de Recompensas:** Pontos ganhos em partidas são convertidos em moedas.
