@@ -785,44 +785,52 @@ func processRound(sala *Sala) {
 }
 
 func endGame(sala *Sala) {
-	game := sala.Game
-	mu.Lock()
-	p1 := findPlayerByConn(sala.Jogador1)
-	p2 := findPlayerByConn(sala.Jogador2)
-	mu.Unlock()
+    game := sala.Game
+    mu.Lock()
+    p1 := findPlayerByConn(sala.Jogador1)
+    p2 := findPlayerByConn(sala.Jogador2)
+    mu.Unlock()
 
-	var winner string
-	var coins int
+    // --- ALTERAÇÃO 1: Atribui moedas para AMBOS os jogadores ---
+    p1.Moedas += game.Player1Score
+    p2.Moedas += game.Player2Score
 
-	if game.Player1Score > game.Player2Score {
-		winner = p1.Login
-		coins = game.Player1Score
-		p1.Moedas += coins
-	} else if game.Player2Score > game.Player1Score {
-		winner = p2.Login
-		coins = game.Player2Score
-		p2.Moedas += coins
-	} else {
-		winner = "EMPATE"
-		coins = 0 // ou pode dar moedas para ambos
-	}
+    var winner string
+    if game.Player1Score > game.Player2Score {
+        winner = p1.Login
+    } else if game.Player2Score > game.Player1Score {
+        winner = p2.Login
+    } else {
+        winner = "EMPATE"
+    }
 
-	gameOverMsg := protocolo.GameOverMessage{
-		Winner:       winner,
-		FinalScoreP1: game.Player1Score,
-		FinalScoreP2: game.Player2Score,
-		CoinsEarned:  coins,
-	}
+    // --- ALTERAÇÃO 2: Cria mensagens personalizadas para cada jogador ---
 
-	sendJSON(sala.Jogador1, protocolo.Message{Type: "GAME_OVER", Data: gameOverMsg})
-	sendJSON(sala.Jogador2, protocolo.Message{Type: "GAME_OVER", Data: gameOverMsg})
+    // Mensagem para o Jogador 1
+    gameOverMsgP1 := protocolo.GameOverMessage{
+        Winner:       winner,
+        FinalScoreP1: game.Player1Score,
+        FinalScoreP2: game.Player2Score,
+        CoinsEarned:  game.Player1Score, // Informa o ganho individual do P1
+    }
+    sendJSON(sala.Jogador1, protocolo.Message{Type: "GAME_OVER", Data: gameOverMsgP1})
 
-	// Limpa a sala
-	mu.Lock()
-	delete(playersInRoom, sala.Jogador1.RemoteAddr().String())
-	delete(playersInRoom, sala.Jogador2.RemoteAddr().String())
-	delete(salas, sala.ID)
-	mu.Unlock()
+    // Mensagem para o Jogador 2
+    gameOverMsgP2 := protocolo.GameOverMessage{
+        Winner:       winner,
+        FinalScoreP1: game.Player1Score,
+        FinalScoreP2: game.Player2Score,
+        CoinsEarned:  game.Player2Score, // Informa o ganho individual do P2
+    }
+    sendJSON(sala.Jogador2, protocolo.Message{Type: "GAME_OVER", Data: gameOverMsgP2})
+
+
+    // Limpa a sala
+    mu.Lock()
+    delete(playersInRoom, sala.Jogador1.RemoteAddr().String())
+    delete(playersInRoom, sala.Jogador2.RemoteAddr().String())
+    delete(salas, sala.ID)
+    mu.Unlock()
 }
 
 

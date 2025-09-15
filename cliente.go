@@ -323,22 +323,26 @@ func interpreter(reader *bufio.Reader, writer *bufio.Writer, gameChannel chan st
 			currentState = InGameState
 
 		case "GAME_OVER":
-			var data protocolo.GameOverMessage
-			_ = mapToStruct(msg.Data, &data)
-			fmt.Println("\n\n--- FIM DE JOGO ---")
-			if data.Winner == "EMPATE" {
-				fmt.Println("A partida terminou em EMPATE!")
-			} else {
-				fmt.Printf("O vencedor é: %s\n", data.Winner)
-				if data.Winner == currentUser {
-					fmt.Printf("Você ganhou %d moedas!\n", data.CoinsEarned)
-					currentBalance += data.CoinsEarned
-				}
-			}
-			fmt.Printf("Placar Final: %d x %d\n", data.FinalScoreP1, data.FinalScoreP2)
-			fmt.Println("Voltando para o menu principal...")
-			time.Sleep(5 * time.Second)
-			currentState = MenuState
+            var data protocolo.GameOverMessage
+            _ = mapToStruct(msg.Data, &data)
+            fmt.Println("\n\n--- FIM DE JOGO ---")
+            if data.Winner == "EMPATE" {
+                fmt.Println("A partida terminou em EMPATE!")
+            } else {
+                fmt.Printf("O vencedor é: %s\n", data.Winner)
+            }
+            
+            // --- ALTERAÇÃO: Sempre exibe o ganho de moedas e atualiza o saldo ---
+            // O servidor agora envia o valor correto para cada jogador (pode ser 0).
+            if data.CoinsEarned > 0 {
+                fmt.Printf("Você ganhou %d moedas!\n", data.CoinsEarned)
+                currentBalance += data.CoinsEarned
+            }
+
+            fmt.Printf("Placar Final: %d x %d\n", data.FinalScoreP1, data.FinalScoreP2)
+            fmt.Println("Voltando para o menu principal...")
+            time.Sleep(5 * time.Second)
+            currentState = MenuState
 		}
 	}
 }
