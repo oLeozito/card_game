@@ -1,0 +1,14 @@
+{
+  "Leo": {
+    "Login": "Leo",
+    "Senha": "123",
+    "Conn": null,
+    "Online": false,
+    "Inventario": {
+      "Cartas": null
+    },
+    "Moedas": 50,
+    "Latencia": 0,
+    "Deck": null
+  }
+}

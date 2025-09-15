@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"sync"
 	"time"
+	"os/signal"
+	"syscall"
 
 	"card_game/protocolo"
 )
@@ -79,6 +81,58 @@ var (
 	storage       []Carta          // Armazem onde ficam as cartas a serem "compradas"
 	mu            sync.Mutex
 )
+const playerDataFile = "data/players.json"
+
+// FUNCOES PARA PERSISTENCIA DE DADOS
+// loadPlayerData carrega os dados dos jogadores de um arquivo JSON.
+func loadPlayerData() {
+	mu.Lock()
+	defer mu.Unlock()
+
+	data, err := os.ReadFile(playerDataFile)
+	if err != nil {
+		if os.IsNotExist(err) {
+			fmt.Printf("Arquivo de jogadores (%s) não encontrado. Um novo será criado ao fechar o servidor.\n", playerDataFile)
+			players = make(map[string]*User)
+		} else {
+			fmt.Printf("Erro ao ler o arquivo de jogadores: %v\n", err)
+		}
+		return
+	}
+
+	if err := json.Unmarshal(data, &players); err != nil {
+		fmt.Printf("Erro ao decodificar o JSON dos jogadores: %v\n", err)
+		return
+	}
+
+	fmt.Printf("%d jogadores carregados do arquivo %s.\n", len(players), playerDataFile)
+}
+
+// savePlayerData salva os dados dos jogadores em um arquivo JSON.
+func savePlayerData() {
+	fmt.Println("\nSalvando dados dos jogadores...")
+	mu.Lock()
+	defer mu.Unlock()
+
+	// Garante que ninguém seja salvo como "online"
+	for _, player := range players {
+		player.Online = false
+		player.Conn = nil
+	}
+
+	data, err := json.MarshalIndent(players, "", "  ") // Usa MarshalIndent para um JSON formatado
+	if err != nil {
+		fmt.Printf("Erro ao codificar os dados dos jogadores para JSON: %v\n", err)
+		return
+	}
+
+	if err := os.WriteFile(playerDataFile, data, 0644); err != nil {
+		fmt.Printf("Erro ao salvar os dados dos jogadores no arquivo: %v\n", err)
+		return
+	}
+
+	fmt.Printf("Dados de %d jogadores salvos com sucesso em %s.\n", len(players), playerDataFile)
+}
 
 // FUNCOES PRA GERENCIAR CONEXAO INICIAL
 func loginUser(conn net.Conn, data protocolo.LoginRequest) {
@@ -854,11 +908,15 @@ func interpreter(conn net.Conn, fullMessage string) {
 	}
 }
 
+// Arquivo: servidor.go
+
 func main() {
 	rand.Seed(time.Now().UnixNano())
-	
+
+	// Carrega os dados dos jogadores ao iniciar
+	loadPlayerData()
+
 	// Iniciando maps e listas
-	players = make(map[string]*User)
 	salas = make(map[string]*Sala)
 	salasEmEspera = make([]*Sala, 0)
 	playersInRoom = make(map[string]*Sala)
@@ -874,6 +932,17 @@ func main() {
 	}
 	fmt.Println("Armazenamento preenchido com 500 cartas!")
 
+	// LÓGICA DE DESLIGAMENTO GRACIOSO
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		<-sigs // Espera por um sinal (Ctrl+C)
+		savePlayerData()
+		os.Exit(0)
+	}()
+	// -----------------------------------------
+
 	// Funcao pra ficar monitorando o ping de TODOS os players. (altere o tempo do sleep pra aumentar a frequencia de leitura)
 	go func() {
 		for {
@@ -887,7 +956,7 @@ func main() {
 			mu.Unlock()
 		}
 	}()
-
+	
 	// Escuta na porta 8080
 	listener, err := net.Listen("tcp", ":8080")
 	if err != nil {
@@ -896,7 +965,7 @@ func main() {
 	}
 	defer listener.Close()
 
-	fmt.Println("Servidor iniciado na porta 8080. Esperando jogadores...")
+	fmt.Println("Servidor iniciado na porta 8080. Pressione Ctrl+C para salvar e fechar.")
 
 	for {
 		conn, err := listener.Accept()
