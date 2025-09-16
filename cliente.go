@@ -358,7 +358,7 @@ func main() {
 
 	// Loop pra abrir conexão com o servidor.
 	for {
-		conn, err = net.Dial("tcp", "127.0.0.1:8080") //ALTERAR O IP DO SERVIDOR PRA TESTAR
+		conn, err = net.Dial("tcp", "servidor:8080") //ALTERAR O IP DO SERVIDOR PRA TESTAR
 		if err == nil {
 			break
 		}
